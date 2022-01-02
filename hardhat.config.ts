@@ -31,7 +31,7 @@ if (!process.env.ALCHEMY_API_KEY) {
 }
 
 function createNetworkConfig(network: keyof typeof chainIds): NetworkUserConfig {
-  const url: string = `https://polygon-${network}.g.alchemy.com/v2/${alchemyApiKey}`;
+  const url: string = `https://eth-${network}.g.alchemy.com/v2/${alchemyApiKey}`;
   return {
     accounts: {
       count: 2,
@@ -58,7 +58,7 @@ const config: HardhatUserConfig = {
     rinkeby: createNetworkConfig("rinkeby"),
   },
   etherscan: {
-    apiKey: process.env.POLYGONSCAN_API_KEY,
+    apiKey: process.env.ETHERSCAN_API_KEY,
     // Use in future hardhat-etherscan version
     // apiKey: {
     //   mainnet: process.env.ETHERSCAN_API_KEY,
