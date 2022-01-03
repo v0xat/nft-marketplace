@@ -9,6 +9,8 @@ for (const parameter in envConfig) {
   process.env[parameter] = envConfig[parameter];
 }
 
+// This script deploys Token, NFT, Marketplace contracts
+// and transfers NFT ownership to Marketplace
 async function main() {
   const [owner]: SignerWithAddress[] = await hre.ethers.getSigners();
   console.log("Owner address: ", owner.address);
@@ -18,20 +20,50 @@ async function main() {
     `Owner account balance: ${hre.ethers.utils.formatEther(balance).toString()}`
   );
 
-  const Token = await hre.ethers.getContractFactory("Token");
-  const token = await Token.deploy(
-    process.env.TOKEN_NAME as string,
-    process.env.TOKEN_SYMBOL as string,
-    process.env.TOKEN_MINT as string
+  // Deploying token
+  const AcademyToken = await hre.ethers.getContractFactory(
+    process.env.TOKEN_NAME as string
+  );
+  const token = await AcademyToken.deploy(
+    process.env.TOKEN_NAME_FULL as string,
+    process.env.TOKEN_SYMBOL as string
+  );
+  await token.deployed();
+  console.log(`${process.env.TOKEN_NAME_FULL} deployed to ${token.address}`);
+
+  // Deploying nft
+  const EssentialImages = await hre.ethers.getContractFactory(
+    process.env.NFT_NAME as string
+  );
+  const ei = await EssentialImages.deploy(
+    process.env.NFT_NAME_FULL as string,
+    process.env.NFT_SYMBOL as string
+  );
+  await ei.deployed();
+  console.log(`${process.env.NFT_NAME_FULL} deployed to ${ei.address}`);
+
+  // Deploying marketplace
+  const Marketplace = await hre.ethers.getContractFactory(
+    process.env.MARKETPLACE_NAME as string
+  );
+  const mp = await Marketplace.deploy(token.address, ei.address);
+  await mp.deployed();
+  console.log(`${process.env.MARKETPLACE_NAME} deployed to ${mp.address}`);
+
+  // Transfer NFT ownership to Marketplace
+  await ei.initMarketplace(mp.address);
+  console.log(
+    `Transferred ${process.env.NFT_NAME_FULL} ownership to ${process.env.MARKETPLACE_NAME}`
   );
 
-  await token.deployed();
-  console.log(`Token deployed to ${token.address}`);
+  console.log("Done!");
 
   // Sync env file
   fs.appendFileSync(
     `.env-${network}`,
-    `\r\# Deployed at \rTOKEN_ADDRESS=${token.address}\r`
+    `\r\# Deployed at \rTOKEN_ADDRESS=${token.address}\r
+     \r\# Deployed at \rNFT_ADDRESS=${ei.address}\r
+     \r\# Deployed at \rMARKETPLACE_ADDRESS=${mp.address}\r`
   );
 }
 
