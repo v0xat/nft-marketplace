@@ -1,0 +1,14 @@
+{
+  "bird": {
+    "name": "Bird",
+    "description": "A very excellent draw of a bird.",
+    "image": "ipfs://QmdnhDbb9fYve8ZkF5SuJx3jwGeKEXcjFzLKCY3xvSQcZp/bird.png",
+    "metadata": "ipfs://QmUYngvFTC6iLdfo6uL7qwdqpNYm8rn4cLxBQbHRrtCVDn/bird.json"
+  },
+  "corona": {
+    "name": "Corona Virus",
+    "description": "The first scientific snapshot of a coronavirus.",
+    "image": "ipfs://QmdnhDbb9fYve8ZkF5SuJx3jwGeKEXcjFzLKCY3xvSQcZp/corona-virus.png",
+    "metadata": "ipfs://QmUYngvFTC6iLdfo6uL7qwdqpNYm8rn4cLxBQbHRrtCVDn/corona-virus.json"
+  }
+}
