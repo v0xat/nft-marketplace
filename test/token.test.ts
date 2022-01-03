@@ -4,10 +4,9 @@ import { BigNumber, Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
 // Token metadata
-const tokenName = "Token";
-const symbol = "CRPT";
+const tokenName = "Academy Token";
+const symbol = "ACDM";
 const decimals = 18;
-const feeRate = 150; // 1.5%
 const tenTokens = ethers.utils.parseUnits("10.0", decimals);
 const twentyTokens = ethers.utils.parseUnits("20.0", decimals);
 
@@ -26,16 +25,12 @@ describe("Token", function () {
 
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
-    Token = await ethers.getContractFactory("Token");
+    Token = await ethers.getContractFactory("AcademyToken");
   });
 
   beforeEach(async () => {
-    token = await Token.deploy(tokenName, symbol, feeRate);
+    token = await Token.deploy(tokenName, symbol);
     await token.deployed();
-
-    // Add owner and Alice to whitelist so they dont have to pay fee
-    await token.addToWhitelist(owner.address);
-    await token.addToWhitelist(alice.address);
 
     // Grant roles and mint some tokens before transferring admin role to DAO
     await token.grantRole(minterRole, alice.address);
@@ -59,10 +54,6 @@ describe("Token", function () {
       expect(await token.decimals()).to.be.equal(decimals);
     });
 
-    it(`Has 1.5% fee rate`, async () => {
-      expect(await token.getFeeRate()).to.be.equal(feeRate);
-    });
-
     it("Should set the right admin role", async () => {
       expect(await token.hasRole(adminRole, owner.address)).to.equal(true);
     });
@@ -74,15 +65,6 @@ describe("Token", function () {
     it("Should set the right burner role", async () => {
       expect(await token.hasRole(burnerRole, bob.address)).to.equal(true);
     });
-
-    it("Should set owner as fee recipient", async () => {
-      expect(await token.getFeeRecipient()).to.be.equal(owner.address);
-    });
-
-    it("Should add owner & Alice to whitelist", async () => {
-      expect(await token.isWhitelisted(owner.address)).to.equal(true);
-      expect(await token.isWhitelisted(alice.address)).to.equal(true);
-    });
   });
 
   describe("Ownership", function () {
@@ -92,92 +74,6 @@ describe("Token", function () {
       ).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${adminRole}`
       );
-    });
-  });
-
-  describe("Whitelist", function () {
-    it("Only admin should be able to whitelist", async () => {
-      await expect(token.connect(alice).addToWhitelist(alice.address)).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${adminRole}`
-      );
-    });
-
-    it("Adding to whitelist emits event", async () => {
-      await expect(token.addToWhitelist(alice.address))
-        .to.emit(token, "AddToWhitelist")
-        .withArgs(owner.address, alice.address);
-    });
-
-    it("Removing from whitelist emits event", async () => {
-      await expect(token.removeFromWhitelist(alice.address))
-        .to.emit(token, "RemoveFromWhitelist")
-        .withArgs(owner.address, alice.address);
-    });
-
-    it("Only admin should be able to remove from whitelist", async () => {
-      await expect(
-        token.connect(alice).removeFromWhitelist(owner.address)
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${adminRole}`
-      );
-    });
-  });
-
-  describe("Fees", function () {
-    it("Should not be able to change fee rate without DEFAULT_ADMIN_ROLE", async () => {
-      const newFee = 2;
-      await expect(token.connect(alice).changeFeeRate(newFee)).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${adminRole}`
-      );
-    });
-
-    it("Changing fee rate emits event", async () => {
-      const newFee = ethers.utils.parseUnits("3.5", decimals);
-      await expect(token.changeFeeRate(newFee))
-        .to.emit(token, "ChangeFeeRate")
-        .withArgs(owner.address, newFee);
-    });
-
-    it("Changing fee recipient emits event", async () => {
-      await expect(token.changeFeeRecipient(alice.address))
-        .to.emit(token, "ChangeFeeRecipient")
-        .withArgs(owner.address, alice.address);
-    });
-
-    it("Should not be able to change fee recipient without DEFAULT_ADMIN_ROLE", async () => {
-      await expect(
-        token.connect(alice).changeFeeRecipient(alice.address)
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${adminRole}`
-      );
-    });
-
-    it("Admin can change fee recipient", async () => {
-      await token.changeFeeRecipient(alice.address);
-      expect(await token.getFeeRecipient()).to.be.equal(alice.address);
-    });
-
-    it("Transfer should not charge fee from whitelisted users", async () => {
-      const amount: BigNumber = tenTokens;
-      await token.transfer(alice.address, amount);
-      const aliceBalance = await token.balanceOf(alice.address);
-      expect(aliceBalance).to.equal(amount);
-    });
-
-    it("Transfer should charge fee from spender in favor of fee recipient", async () => {
-      const initBobBalance = await token.balanceOf(bob.address);
-      const fee: BigNumber = tenTokens.mul(feeRate).div(10000);
-      await token.connect(bob).transfer(alice.address, tenTokens);
-      const bobBalance = await token.balanceOf(bob.address);
-      expect(bobBalance).to.equal(initBobBalance.sub(tenTokens).sub(fee));
-    });
-
-    it("Transfer should fail if sender doesn't have enough tokens to pay fee", async () => {
-      const bobBalance = await token.balanceOf(bob.address);
-      // Trying to send all Bob's tokens to Alice
-      await expect(
-        token.connect(bob).transfer(alice.address, bobBalance)
-      ).to.be.revertedWith("Not enough to pay fee");
     });
   });
 
