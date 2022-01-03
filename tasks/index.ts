@@ -6,3 +6,7 @@ import "./marketplace/listItem.ts";
 import "./marketplace/pause.ts";
 import "./marketplace/unpause.ts";
 import "./token/balanceOf.ts";
+import "./token/burn.ts";
+import "./token/grantRoles.ts";
+import "./token/mint.ts";
+import "./token/revokeRole.ts";
