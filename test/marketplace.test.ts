@@ -45,7 +45,7 @@ describe("Marketplace", function () {
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
     ACDMtoken = await ethers.getContractFactory("AcademyToken");
-    ACDM721 = await ethers.getContractFactory("Item721");
+    ACDM721 = await ethers.getContractFactory("EssentialImages");
     Marketplace = await ethers.getContractFactory("Marketplace");
   });
 

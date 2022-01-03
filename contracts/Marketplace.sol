@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-import "./assets/erc20/Token.sol";
-import "./assets/erc721/Item721.sol";
+import "./assets/erc20/AcademyToken.sol";
+import "./assets/erc721/EssentialImages.sol";
 
 /** @title Simple NFT marketplace. */
 contract Marketplace is IERC721Receiver, Ownable, Pausable {
@@ -65,7 +65,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     whenNotPaused
     returns (uint256 itemID)
   {
-    itemID = Item721(nft).safeMint(to, tokenURI);
+    itemID = EssentialImages(nft).safeMint(to, tokenURI);
     emit CreatedItem(msg.sender, to, itemID);
   }
 
@@ -75,7 +75,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   {
     require(price > 0, "Price can't be zero");
 
-    Item721(nft).safeTransferFrom(msg.sender, address(this), itemID);
+    EssentialImages(nft).safeTransferFrom(msg.sender, address(this), itemID);
 
     numListed++;
     uint256 listID = numListed;
@@ -101,7 +101,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     IERC20(token).safeTransferFrom(msg.sender, item.owner, item.price);
 
     // Transfer Item
-    Item721(nft).safeTransferFrom(address(this), msg.sender, item.itemID);
+    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, item.itemID);
     listedItems[listID].isListed = false;
 
     emit Purchase(msg.sender, item.owner, listID, item.itemID, item.price);
@@ -114,7 +114,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     Item storage item = listedItems[listID];
     require(msg.sender == item.owner, "Not your item");
 
-    Item721(nft).safeTransferFrom(address(this), msg.sender, item.itemID);
+    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, item.itemID);
     item.isListed = false;
 
     emit CancelListing(listID, msg.sender, item.itemID);

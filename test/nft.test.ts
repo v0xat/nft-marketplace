@@ -25,7 +25,7 @@ describe("ERC721", function () {
 
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
-    ERC721 = await ethers.getContractFactory("Item721");
+    ERC721 = await ethers.getContractFactory("EssentialImages");
   });
 
   beforeEach(async () => {
