@@ -78,21 +78,22 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     Item721(nft).safeTransferFrom(msg.sender, address(this), itemID);
 
     numListed++;
-    listedItems[numListed] = Item({
+    uint256 listID = numListed;
+    listedItems[listID] = Item({
       itemID: itemID,
       price: price,
       owner: msg.sender,
       isListed: true
     });
 
-    emit ListedItem(numListed, msg.sender, itemID, price);
+    emit ListedItem(listID, msg.sender, itemID, price);
   }
 
   function buyItem(uint256 listID)
     external
     whenNotPaused
   {
-    Item storage item = listedItems[listID];
+    Item memory item = listedItems[listID];
     require(msg.sender != item.owner, "Can't buy from yourself");
     require(item.isListed, "Item not listed");
 
@@ -101,7 +102,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
 
     // Transfer Item
     Item721(nft).safeTransferFrom(address(this), msg.sender, item.itemID);
-    item.isListed = false;
+    listedItems[listID].isListed = false;
 
     emit Purchase(msg.sender, item.owner, listID, item.itemID, item.price);
   }
