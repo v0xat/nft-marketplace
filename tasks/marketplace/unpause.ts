@@ -12,8 +12,8 @@ task("unpause", "Unpause Marketplace functions")
     }
 
     const mp = await hre.ethers.getContractAt(
-      process.env.NFT_MARKETPLACE_NAME as string,
-      taskArgs.mp || (process.env.NFT_MARKETPLACE_ADDRESS as string)
+      process.env.MARKETPLACE_NAME as string,
+      taskArgs.mp || (process.env.MARKETPLACE_ADDRESS as string)
     );
 
     console.log(`\nPausing Marketplace at ${mp.address} ...\n`);
