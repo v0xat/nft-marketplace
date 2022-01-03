@@ -6,14 +6,14 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import testData from "./fixtures/sample-nft-metadata.json";
 
 // Token metadata
-const tokenName = "Academy Token";
+const tokenName = "AcademyToken";
 const tokenSymbol = "ACDM";
 const decimals = 18;
 const tenTokens = ethers.utils.parseUnits("10.0", decimals);
 const twentyTokens = ethers.utils.parseUnits("20.0", decimals);
 
 // NFT metadata
-const nftName = "Essential images";
+const nftName = "EssentialImages";
 const nftSymbol = "EI";
 
 // Test data
@@ -44,8 +44,8 @@ describe("Marketplace", function () {
 
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
-    ACDMtoken = await ethers.getContractFactory("AcademyToken");
-    ACDM721 = await ethers.getContractFactory("EssentialImages");
+    ACDMtoken = await ethers.getContractFactory(tokenName);
+    ACDM721 = await ethers.getContractFactory(nftName);
     Marketplace = await ethers.getContractFactory("Marketplace");
   });
 

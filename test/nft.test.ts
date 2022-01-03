@@ -6,7 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import testData from "./fixtures/sample-nft-metadata.json";
 
 // NFT metadata
-const nftName = "Essential images";
+const nftName = "EssentialImages";
 const symbol = "EI";
 
 // Test data
@@ -25,7 +25,7 @@ describe("ERC721", function () {
 
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
-    ERC721 = await ethers.getContractFactory("EssentialImages");
+    ERC721 = await ethers.getContractFactory(nftName);
   });
 
   beforeEach(async () => {

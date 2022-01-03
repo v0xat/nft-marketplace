@@ -4,7 +4,7 @@ import { BigNumber, Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
 // Token metadata
-const tokenName = "Academy Token";
+const tokenName = "AcademyToken";
 const symbol = "ACDM";
 const decimals = 18;
 const tenTokens = ethers.utils.parseUnits("10.0", decimals);
@@ -25,7 +25,7 @@ describe("Token", function () {
 
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
-    Token = await ethers.getContractFactory("AcademyToken");
+    Token = await ethers.getContractFactory(tokenName);
   });
 
   beforeEach(async () => {
