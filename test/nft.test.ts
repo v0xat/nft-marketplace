@@ -52,6 +52,8 @@ describe("ERC721", function () {
       await expect(nft.safeMint(owner.address, birdURI))
         .to.emit(nft, "Transfer")
         .withArgs(zeroAddr, owner.address, firstItemID);
+
+      expect(await nft.tokenURI(firstItemID)).to.equal(birdURI);
     });
 
     it("Only owner can call mint", async () => {

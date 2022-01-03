@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { BigNumber, Contract, ContractFactory } from "ethers";
+import { Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
 import testData from "./fixtures/sample-nft-metadata.json";
@@ -145,6 +145,8 @@ describe("Marketplace", function () {
         .withArgs(owner.address, owner.address, firstItemID)
         .and.to.emit(nft, "Transfer")
         .withArgs(zeroAddr, owner.address, firstItemID);
+
+      expect(await nft.tokenURI(firstItemID)).to.equal(birdURI);
     });
   });
 
