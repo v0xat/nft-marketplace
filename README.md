@@ -2,11 +2,11 @@
 
 ### Contracts on Rinkeby testnet:
 
-Essential Images: [0x96a75426C5e109926FAB465536a50691f36f1c4c](https://rinkeby.etherscan.io/token/0x96a75426C5e109926FAB465536a50691f36f1c4c)
+Essential Images: [0x7a69da73dfED20B6666d99ffa4dC5E039551F6a7](https://rinkeby.etherscan.io/token/0x7a69da73dfED20B6666d99ffa4dC5E039551F6a7)
 
-Marketplace: [0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57](https://rinkeby.etherscan.io/address/0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57)
+Marketplace: [0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57](https://rinkeby.etherscan.io/address/0xfc97a67AD6910904BF07D898D603b049E78d6457)
 
-Token: [0xE742FD01AcDbc54D92Ac58BB962EF606deBe7d3a](https://rinkeby.etherscan.io/token/0xE742FD01AcDbc54D92Ac58BB962EF606deBe7d3a)
+Token: [0x1F06A276d26028d7E1D392B7E432E255f9137d9B](https://rinkeby.etherscan.io/token/0x1F06A276d26028d7E1D392B7E432E255f9137d9B)
 
 ### How to run
 
