@@ -1,5 +1,12 @@
 # NFT Marketplace
 
+### Contracts on Rinkeby testnet:
+
+Essential Images: [0x96a75426C5e109926FAB465536a50691f36f1c4c](https://rinkeby.etherscan.io/token/0x96a75426C5e109926FAB465536a50691f36f1c4c)
+
+Marketplace: [0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57](https://rinkeby.etherscan.io/address/0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57)
+
+Token: [0xE742FD01AcDbc54D92Ac58BB962EF606deBe7d3a](https://rinkeby.etherscan.io/token/0xE742FD01AcDbc54D92Ac58BB962EF606deBe7d3a)
 
 ### How to run
 
