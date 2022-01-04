@@ -53,7 +53,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   }
 
   /** @notice Unpausing functions of contract.
-    @dev Available only to adminю
+    @dev Available only to admin.
   */
   function unpause() external onlyOwner {
     _unpause();
