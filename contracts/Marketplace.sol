@@ -119,4 +119,17 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
 
     emit CancelListing(listID, msg.sender, item.itemID);
   }
+
+  function getAllListedItems() external view returns(Item[] memory) {
+    Item[] memory listed = new Item[](numListed);
+    for (uint256 i = 1; i <= numListed; i++) {
+      // Here we do `i-1` because listedItems indexes start with 1
+      listed[i - 1] = listedItems[i];
+    }
+    return listed;
+  }
+
+  function getListingById(uint256 id) public view returns(Item memory) {
+    return listedItems[id];
+  }
 }

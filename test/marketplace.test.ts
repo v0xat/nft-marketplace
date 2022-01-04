@@ -243,4 +243,43 @@ describe("Marketplace", function () {
         .withArgs(alice.address, owner.address, twentyTokens);
     });
   });
+
+  describe("Getters", function () {
+    beforeEach(async () => {
+      // Minting 2 items
+      await mp.createItem(owner.address, birdURI);
+      await mp.createItem(alice.address, coronaURI);
+      // Approving items to Marketplace
+      await nft.approve(mp.address, firstItemID);
+      await nft.connect(alice).approve(mp.address, secondItemID);
+      // Listing items
+      await mp.listItem(firstItemID, twentyTokens);
+      await mp.connect(alice).listItem(secondItemID, twentyTokens);
+    });
+
+    it("Should be able to get all listed items", async () => {
+      // Some crazy experiments
+      // console.log(await mp.estimateGas.getAllListedItems());
+      // for (let i = 3; i < 3400; i += 1) {
+      //   await mp.createItem(owner.address, birdURI);
+      //   await nft.approve(mp.address, i);
+      //   await mp.listItem(i, tenTokens);
+      // }
+      // console.log("Done!");
+      // console.log(await mp.estimateGas.getAllListedItems());
+      const items = await mp.getAllListedItems();
+      expect(items.length).to.be.equal(2);
+      expect(items[0].owner).to.be.equal(owner.address);
+      expect(items[1].owner).to.be.equal(alice.address);
+      expect(items[0].isListed).to.be.equal(true);
+      expect(items[1].isListed).to.be.equal(true);
+    }).timeout(240000);
+
+    it("Should be able to get listings by id", async () => {
+      const item = await mp.getListingById(secondList);
+      expect(item.owner).to.be.equal(alice.address);
+      expect(item.price).to.be.equal(twentyTokens);
+      expect(item.isListed).to.be.equal(true);
+    });
+  });
 });
