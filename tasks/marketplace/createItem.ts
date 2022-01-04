@@ -19,6 +19,6 @@ task("create", "Mints new NFT")
     );
 
     console.log(`Minting new item to ${taskArgs.to} ...`);
-    await mp.listItem(taskArgs.to, taskArgs.uri);
+    await mp.createItem(taskArgs.to, taskArgs.uri);
     console.log(`Done!`);
   });
