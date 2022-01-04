@@ -128,8 +128,4 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     }
     return listed;
   }
-
-  function getListingById(uint256 id) public view returns(Item memory) {
-    return listedItems[id];
-  }
 }

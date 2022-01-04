@@ -276,7 +276,7 @@ describe("Marketplace", function () {
     }).timeout(240000);
 
     it("Should be able to get listings by id", async () => {
-      const item = await mp.getListingById(secondList);
+      const item = await mp.listedItems(secondList);
       expect(item.owner).to.be.equal(alice.address);
       expect(item.price).to.be.equal(twentyTokens);
       expect(item.isListed).to.be.equal(true);
