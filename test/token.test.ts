@@ -182,7 +182,6 @@ describe("Token", function () {
     });
   });
 
-  // In our tests Bob has the BURNER_ROLE
   describe("Burning", function () {
     it("Should not be able to burn tokens without BURNER_ROLE", async () => {
       const burnAmount = tenTokens;
@@ -220,7 +219,6 @@ describe("Token", function () {
     });
   });
 
-  // In out tests Alice has the MINTER_ROLE
   describe("Minting", function () {
     it("Should not be able to mint tokens without MINTER_ROLE", async () => {
       const mintAmount = tenTokens;
