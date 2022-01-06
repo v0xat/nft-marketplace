@@ -20,10 +20,8 @@ const nftSymbol = "EI";
 const zeroAddr = ethers.constants.AddressZero;
 const birdURI: string = testData.bird.metadata;
 const coronaURI: string = testData.corona.metadata;
-const firstItemID = 1;
-const secondItemID = 2;
-const firstList = 1;
-const secondList = 2;
+const firstItem = 1;
+const secondItem = 2;
 
 // AccessControl roles in bytes32 string
 // DEFAULT_ADMIN_ROLE, MINTER_ROLE, BURNER_ROLE
@@ -142,11 +140,11 @@ describe("Marketplace", function () {
     it("Should be able to create item", async () => {
       await expect(mp.createItem(owner.address, birdURI))
         .to.emit(mp, "CreatedItem")
-        .withArgs(owner.address, owner.address, firstItemID)
+        .withArgs(owner.address, owner.address, firstItem)
         .and.to.emit(nft, "Transfer")
-        .withArgs(zeroAddr, owner.address, firstItemID);
+        .withArgs(zeroAddr, owner.address, firstItem);
 
-      expect(await nft.tokenURI(firstItemID)).to.equal(birdURI);
+      expect(await nft.tokenURI(firstItem)).to.equal(birdURI);
     });
   });
 
@@ -157,42 +155,49 @@ describe("Marketplace", function () {
       await mp.createItem(alice.address, coronaURI);
 
       // Approving owner's item to Marketplace
-      await nft.approve(mp.address, firstItemID);
+      await nft.approve(mp.address, firstItem);
     });
 
     it("Can't list an unapproved item", async () => {
-      await expect(mp.listItem(secondItemID, tenTokens)).to.be.revertedWith(
+      await expect(mp.listItem(secondItem, tenTokens)).to.be.revertedWith(
         "ERC721: transfer caller is not owner nor approved"
       );
     });
 
     it("Can't list with zero price", async () => {
-      await expect(mp.listItem(firstItemID, 0)).to.be.revertedWith("Price can't be zero");
+      await expect(mp.listItem(firstItem, 0)).to.be.revertedWith("Price can't be zero");
     });
 
     it("Listing emits events", async () => {
-      await expect(mp.listItem(firstItemID, tenTokens))
+      await expect(mp.listItem(firstItem, tenTokens))
         .to.emit(mp, "ListedItem")
-        .withArgs(1, owner.address, firstItemID, tenTokens)
+        .withArgs(firstItem, owner.address, tenTokens)
         .and.to.emit(nft, "Transfer")
-        .withArgs(owner.address, mp.address, firstItemID);
+        .withArgs(owner.address, mp.address, firstItem);
+    });
+
+    it("Can't list item twice", async () => {
+      await mp.listItem(firstItem, tenTokens);
+      await expect(mp.listItem(firstItem, tenTokens)).to.be.revertedWith(
+        "ERC721: transfer of token that is not own"
+      );
     });
 
     describe("Delisting", function () {
       it("Can delist only own items", async () => {
-        await mp.listItem(firstItemID, tenTokens);
-        await expect(mp.connect(alice).cancel(firstList)).to.be.revertedWith(
+        await mp.listItem(firstItem, tenTokens);
+        await expect(mp.connect(alice).cancel(firstItem)).to.be.revertedWith(
           "Not your item"
         );
       });
 
       it("Delisting emits events", async () => {
-        await mp.listItem(firstItemID, tenTokens);
-        await expect(mp.cancel(firstList))
+        await mp.listItem(firstItem, tenTokens);
+        await expect(mp.cancel(firstItem))
           .to.emit(mp, "CancelListing")
-          .withArgs(firstList, owner.address, firstItemID)
+          .withArgs(firstItem, owner.address)
           .and.to.emit(nft, "Transfer")
-          .withArgs(mp.address, owner.address, firstItemID);
+          .withArgs(mp.address, owner.address, firstItem);
       });
     });
   });
@@ -203,18 +208,18 @@ describe("Marketplace", function () {
       await mp.createItem(owner.address, birdURI);
       await mp.createItem(alice.address, coronaURI);
       // Approving items to Marketplace
-      await nft.approve(mp.address, firstItemID);
-      await nft.connect(alice).approve(mp.address, secondItemID);
+      await nft.approve(mp.address, firstItem);
+      await nft.connect(alice).approve(mp.address, secondItem);
       // Listing items
-      await mp.listItem(firstItemID, twentyTokens);
-      await mp.connect(alice).listItem(secondItemID, twentyTokens);
+      await mp.listItem(firstItem, twentyTokens);
+      await mp.connect(alice).listItem(secondItem, twentyTokens);
       // Approve tokens
       await acdmToken.approve(mp.address, tenTokens);
       await acdmToken.connect(alice).approve(mp.address, twentyTokens);
     });
 
     it("Can't buy from yourself", async () => {
-      await expect(mp.buyItem(firstList)).to.be.revertedWith("Can't buy from yourself");
+      await expect(mp.buyItem(firstItem)).to.be.revertedWith("Can't buy from yourself");
     });
 
     it("Can't buy unlisted item", async () => {
@@ -222,23 +227,23 @@ describe("Marketplace", function () {
     });
 
     it("Can't buy with isuffitient balance", async () => {
-      await expect(mp.connect(bob).buyItem(firstList)).to.be.revertedWith(
+      await expect(mp.connect(bob).buyItem(firstItem)).to.be.revertedWith(
         "ERC20: transfer amount exceeds balance"
       );
     });
 
     it("Can't buy with isuffitient allowance", async () => {
-      await expect(mp.buyItem(secondList)).to.be.revertedWith(
+      await expect(mp.buyItem(secondItem)).to.be.revertedWith(
         "ERC20: transfer amount exceeds allowance"
       );
     });
 
     it("Buying emits events", async () => {
-      await expect(mp.connect(alice).buyItem(firstList))
+      await expect(mp.connect(alice).buyItem(firstItem))
         .to.emit(mp, "Purchase")
-        .withArgs(alice.address, owner.address, firstList, firstItemID, twentyTokens)
+        .withArgs(firstItem, alice.address, owner.address, twentyTokens)
         .and.to.emit(nft, "Transfer")
-        .withArgs(mp.address, alice.address, firstItemID)
+        .withArgs(mp.address, alice.address, firstItem)
         .and.to.emit(acdmToken, "Transfer")
         .withArgs(alice.address, owner.address, twentyTokens);
     });
@@ -250,14 +255,14 @@ describe("Marketplace", function () {
       await mp.createItem(owner.address, birdURI);
       await mp.createItem(alice.address, coronaURI);
       // Approving items to Marketplace
-      await nft.approve(mp.address, firstItemID);
-      await nft.connect(alice).approve(mp.address, secondItemID);
+      await nft.approve(mp.address, firstItem);
+      await nft.connect(alice).approve(mp.address, secondItem);
       // Listing items
-      await mp.listItem(firstItemID, twentyTokens);
-      await mp.connect(alice).listItem(secondItemID, twentyTokens);
+      await mp.listItem(firstItem, twentyTokens);
+      await mp.connect(alice).listItem(secondItem, twentyTokens);
     });
 
-    it("Should be able to get all listed items", async () => {
+    it("Should be able to get all items", async () => {
       // Some crazy experiments
       // console.log(await mp.estimateGas.getAllListedItems());
       // for (let i = 3; i < 3400; i += 1) {
@@ -267,7 +272,7 @@ describe("Marketplace", function () {
       // }
       // console.log("Done!");
       // console.log(await mp.estimateGas.getAllListedItems());
-      const items = await mp.getAllListedItems();
+      const items = await mp.getAllItems();
       expect(items.length).to.be.equal(2);
       expect(items[0].owner).to.be.equal(owner.address);
       expect(items[1].owner).to.be.equal(alice.address);
@@ -275,8 +280,8 @@ describe("Marketplace", function () {
       expect(items[1].isListed).to.be.equal(true);
     }).timeout(240000);
 
-    it("Should be able to get listings by id", async () => {
-      const item = await mp.listedItems(secondList);
+    it("Should be able to get listings by item ids", async () => {
+      const item = await mp.listedItems(secondItem);
       expect(item.owner).to.be.equal(alice.address);
       expect(item.price).to.be.equal(twentyTokens);
       expect(item.isListed).to.be.equal(true);
