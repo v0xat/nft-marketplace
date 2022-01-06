@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract EssentialImages is Ownable, ERC721URIStorage {
     using Counters for Counters.Counter;
-    Counters.Counter private _tokenIds;
+    Counters.Counter public tokenIds;
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) {}
 
@@ -21,9 +21,9 @@ contract EssentialImages is Ownable, ERC721URIStorage {
         onlyOwner
         returns (uint256)
     {
-        _tokenIds.increment();
+        tokenIds.increment();
 
-        uint256 newItemId = _tokenIds.current();
+        uint256 newItemId = tokenIds.current();
         _safeMint(to, newItemId);
         _setTokenURI(newItemId, tokenURI);
 

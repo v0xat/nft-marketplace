@@ -19,18 +19,17 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   address public nft;
 
   event CreatedItem(address indexed creator, address indexed to, uint256 indexed itemID);
-  event ListedItem(uint256 indexed listID, address indexed owner, uint256 indexed itemID, uint256 price);
-  event CancelListing(uint256 indexed listID, address indexed owner, uint256 indexed itemID);
-  event Purchase(address indexed buyer, address indexed seller, uint256 indexed listID, uint256 itemID, uint256 price);
+  event ListedItem(uint256 indexed itemID, address indexed owner, uint256 price);
+  event CancelListing(uint256 indexed itemID, address indexed owner);
+  event Purchase(uint256 indexed itemID, address indexed buyer, address indexed seller, uint256 price);
 
   struct Item {
-    uint256 itemID;
     uint256 price;
     address owner;
     bool isListed;
   }
 
-  mapping(uint256 => Item) public listedItems; // listID => Item
+  mapping(uint256 => Item) public listedItems; // itemID => Item
 
   constructor(address _token, address _nft) {
     token = _token;
@@ -66,7 +65,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     returns (uint256 itemID)
   {
     itemID = EssentialImages(nft).safeMint(to, tokenURI);
-    emit CreatedItem(msg.sender, to, itemID);
+    emit CreatedItem(msg.sender, to, itemID); // ?
   }
 
   function listItem(uint256 itemID, uint256 price)
@@ -77,23 +76,20 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
 
     EssentialImages(nft).safeTransferFrom(msg.sender, address(this), itemID);
 
-    numListed++;
-    uint256 listID = numListed;
-    listedItems[listID] = Item({
-      itemID: itemID,
+    listedItems[itemID] = Item({
       price: price,
       owner: msg.sender,
       isListed: true
     });
 
-    emit ListedItem(listID, msg.sender, itemID, price);
+    emit ListedItem(itemID, msg.sender, price);
   }
 
-  function buyItem(uint256 listID)
+  function buyItem(uint256 itemID)
     external
     whenNotPaused
   {
-    Item memory item = listedItems[listID];
+    Item memory item = listedItems[itemID];
     require(msg.sender != item.owner, "Can't buy from yourself");
     require(item.isListed, "Item not listed");
 
@@ -101,29 +97,30 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     IERC20(token).safeTransferFrom(msg.sender, item.owner, item.price);
 
     // Transfer Item
-    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, item.itemID);
-    listedItems[listID].isListed = false;
+    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, itemID);
+    listedItems[itemID].isListed = false;
 
-    emit Purchase(msg.sender, item.owner, listID, item.itemID, item.price);
+    emit Purchase(itemID, msg.sender, item.owner, item.price);
   }
 
-  function cancel(uint256 listID)
+  function cancel(uint256 itemID)
     external
     whenNotPaused
   {
-    Item storage item = listedItems[listID];
+    Item storage item = listedItems[itemID];
     require(msg.sender == item.owner, "Not your item");
 
-    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, item.itemID);
+    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, itemID);
     item.isListed = false;
 
-    emit CancelListing(listID, msg.sender, item.itemID);
+    emit CancelListing(itemID, msg.sender);
   }
 
-  function getAllListedItems() external view returns(Item[] memory) {
-    Item[] memory listed = new Item[](numListed);
-    for (uint256 i = 1; i <= numListed; i++) {
-      // Here we do `i-1` because listedItems indexes start with 1
+  function getAllItems() external view returns(Item[] memory) {
+    uint256 numItems = EssentialImages(nft).tokenIds();
+    Item[] memory listed = new Item[](numItems);
+    for (uint256 i = 1; i <= numItems; i++) {
+      // Here we assign to `i-1` because listedItems indexes start with 1
       listed[i - 1] = listedItems[i];
     }
     return listed;
