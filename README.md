@@ -12,22 +12,20 @@ Token: [0x1F06A276d26028d7E1D392B7E432E255f9137d9B](https://rinkeby.etherscan.io
 
 Create a `.env` file using the `.env.example` template with the following content
 - [ALCHEMY_API_KEY](https://www.alchemy.com/)
+- [POLYGONSCAN_API_KEY](https://polygonscan.com/apis)
 - [CMC_API_KEY](https://coinmarketcap.com/api/)
+- [BSCSCAN_API_KEY](https://bscscan.com/apis)
 - [ETHERSCAN_API_KEY](https://etherscan.io/apis)
-- [POLYGONSCAN_API_KEY](https://polygonscan.com/apis) - optional, etherscan is used in config
-- MNEMONIC
-
-`.env-<network_name>` with:
-- TOKEN_NAME
-- TOKEN_SYMBOL
-- TOKEN_DECIMALS
+- [MNEMONIC](https://docs.metamask.io/guide/common-terms.html#mnemonic-phrase-seed-phrase-seed-words)
 
 Try running some of the following tasks and don't forget to specify network (ex. `--network rinkeby`):
 
+* `hh` is a [shorthand](https://hardhat.org/guides/shorthand.html) for `npx hardhat`
+
 ```shell
-npx hardhat coverage
-npx hardhat test test/token.test.ts
-npx hardhat accounts
-npx hardhat run scripts/deploy.ts
-npx hardhat token-balance --account <addrs>
+hh coverage
+hh test test/token.test.ts
+hh accounts
+hh run scripts/deploy.ts
+hh token-balance --account <addrs>
 ```
