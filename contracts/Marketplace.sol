@@ -19,7 +19,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   Counters.Counter private _numListed; 
 
   address public token;
-  address public nft;
+  EssentialImages public nft;
 
   event ListedItem(uint256 indexed itemID, address indexed owner, uint256 price);
   event CancelListing(uint256 indexed itemID, address indexed owner);
@@ -32,9 +32,9 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
 
   mapping(uint256 => Item) public listedItems; // itemID => Item
 
-  constructor(address _token, address _nft) {
+  constructor(address _token, string memory nftName, string memory nftSymbol) {
     token = _token;
-    nft = _nft;
+    nft = new EssentialImages(nftName, nftSymbol);
   }
 
   /**
@@ -65,7 +65,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     whenNotPaused
     returns (uint256 itemId)
   {
-    itemId = EssentialImages(nft).safeMint(to, tokenURI);
+    itemId = nft.safeMint(to, tokenURI);
   }
 
   function listItem(uint256 itemId, uint256 price)
@@ -74,7 +74,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   {
     require(price > 0, "Price can't be zero");
 
-    EssentialImages(nft).safeTransferFrom(msg.sender, address(this), itemId);
+    nft.safeTransferFrom(msg.sender, address(this), itemId);
 
     listedItems[itemId] = Item({
       price: price,
@@ -98,7 +98,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     IERC20(token).safeTransferFrom(msg.sender, item.owner, item.price);
 
     // Transfer Item
-    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, itemId);
+    nft.safeTransferFrom(address(this), msg.sender, itemId);
     listedItems[itemId].price = 0;
 
     _numListed.decrement();
@@ -113,7 +113,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     Item storage item = listedItems[itemId];
     require(msg.sender == item.owner, "Not your item");
 
-    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, itemId);
+    nft.safeTransferFrom(address(this), msg.sender, itemId);
     item.price = 0;
 
     _numListed.decrement();

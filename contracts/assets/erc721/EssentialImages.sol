@@ -12,10 +12,6 @@ contract EssentialImages is Ownable, ERC721URIStorage {
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) {}
 
-    function initMarketplace(address mp) external onlyOwner {
-        transferOwnership(mp);
-    }
-
     function safeMint(address to, string memory tokenURI)
         public
         onlyOwner

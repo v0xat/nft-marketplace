@@ -35,7 +35,6 @@ describe("Marketplace", function () {
     nft: Contract,
     Marketplace: ContractFactory,
     ACDMtoken: ContractFactory,
-    ACDM721: ContractFactory,
     owner: SignerWithAddress,
     alice: SignerWithAddress,
     bob: SignerWithAddress;
@@ -43,7 +42,6 @@ describe("Marketplace", function () {
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
     ACDMtoken = await ethers.getContractFactory(tokenName);
-    ACDM721 = await ethers.getContractFactory(nftName);
     Marketplace = await ethers.getContractFactory("Marketplace");
   });
 
@@ -52,13 +50,13 @@ describe("Marketplace", function () {
     acdmToken = await ACDMtoken.deploy(tokenName, tokenSymbol);
     await acdmToken.deployed();
 
-    // Deploy nft
-    nft = await ACDM721.deploy(nftName, nftSymbol);
-    await nft.deployed();
-
-    // Deploy Marketplace contract
-    mp = await Marketplace.deploy(acdmToken.address, nft.address);
+    // Deploy Marketplace & NFT contract
+    mp = await Marketplace.deploy(acdmToken.address, nftName, nftSymbol);
     await mp.deployed();
+
+    // Getting NFT contract
+    const nftAddr: string = await mp.nft();
+    nft = await ethers.getContractAt(nftName, nftAddr);
 
     // Grant Minter & Burner role to admin
     await acdmToken.grantRole(minterRole, owner.address);
@@ -67,9 +65,6 @@ describe("Marketplace", function () {
     // Mint some tokens
     await acdmToken.mint(owner.address, twentyTokens);
     await acdmToken.mint(alice.address, twentyTokens);
-
-    // Transfer NFT ownership to Marketplace
-    nft.initMarketplace(mp.address);
   });
 
   describe("Deployment", function () {
@@ -96,20 +91,6 @@ describe("Marketplace", function () {
     it("Should set minter & burner role to owner", async () => {
       expect(await acdmToken.hasRole(minterRole, owner.address)).to.equal(true);
       expect(await acdmToken.hasRole(burnerRole, owner.address)).to.equal(true);
-    });
-
-    it("Non owner should not be able to init Marketplace", async () => {
-      await expect(nft.connect(alice).initMarketplace(mp.address)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
-    });
-  });
-
-  describe("Ownership", function () {
-    it("Non owner should not be able to init Marketplace", async () => {
-      await expect(nft.connect(alice).initMarketplace(mp.address)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
     });
   });
 
