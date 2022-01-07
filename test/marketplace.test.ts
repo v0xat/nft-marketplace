@@ -139,8 +139,6 @@ describe("Marketplace", function () {
 
     it("Should be able to create item", async () => {
       await expect(mp.createItem(owner.address, birdURI))
-        .to.emit(mp, "CreatedItem")
-        .withArgs(owner.address, owner.address, firstItem)
         .and.to.emit(nft, "Transfer")
         .withArgs(zeroAddr, owner.address, firstItem);
 

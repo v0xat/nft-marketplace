@@ -21,7 +21,6 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   address public token;
   address public nft;
 
-  event CreatedItem(address indexed creator, address indexed to, uint256 indexed itemID);
   event ListedItem(uint256 indexed itemID, address indexed owner, uint256 price);
   event CancelListing(uint256 indexed itemID, address indexed owner);
   event Purchase(uint256 indexed itemID, address indexed buyer, address indexed seller, uint256 price);
@@ -67,7 +66,6 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     returns (uint256 itemId)
   {
     itemId = EssentialImages(nft).safeMint(to, tokenURI);
-    emit CreatedItem(msg.sender, to, itemId); // ???
   }
 
   function listItem(uint256 itemId, uint256 price)
