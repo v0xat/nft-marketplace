@@ -58,15 +58,19 @@ const config: HardhatUserConfig = {
     rinkeby: createNetworkConfig("rinkeby"),
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
-    // Use in future hardhat-etherscan version
-    // apiKey: {
-    //   mainnet: process.env.ETHERSCAN_API_KEY,
-    //   ropsten: process.env.ETHERSCAN_API_KEY,
-    //   rinkeby: process.env.ETHERSCAN_API_KEY,
-    //   // polygon
-    //   mumbai: process.env.POLYGONSCAN_API_KEY,
-    // },
+    apiKey: {
+      mainnet: process.env.ETHERSCAN_API_KEY,
+      ropsten: process.env.ETHERSCAN_API_KEY,
+      rinkeby: process.env.ETHERSCAN_API_KEY,
+      goerli: process.env.ETHERSCAN_API_KEY,
+      kovan: process.env.ETHERSCAN_API_KEY,
+      // binance smart chain
+      bsc: process.env.BSCSCAN_API_KEY,
+      bscTestnet: process.env.BSCSCAN_API_KEY,
+      // polygon
+      polygon: process.env.POLYGONSCAN_API_KEY,
+      polygonMumbai: process.env.POLYGONSCAN_API_KEY,
+    },
   },
   paths: {
     artifacts: "./artifacts",
