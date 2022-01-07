@@ -9,8 +9,8 @@ for (const parameter in envConfig) {
   process.env[parameter] = envConfig[parameter];
 }
 
-// This script deploys only the Marketplace contract by
-// getting the latest NFT and Token addresses from the .env
+// This script deploys Marketplace & NFT contract by
+// getting the latest ERC20 Token address from the .env
 async function main() {
   const [owner]: SignerWithAddress[] = await hre.ethers.getSigners();
   console.log("Owner address: ", owner.address);
@@ -20,20 +20,29 @@ async function main() {
     `Owner account balance: ${hre.ethers.utils.formatEther(balance).toString()}`
   );
 
-  // Deploying marketplace
+  // Deploying Marketplace & NFT
   const Marketplace = await hre.ethers.getContractFactory(
     process.env.MARKETPLACE_NAME as string
   );
-  const mp = await Marketplace.deploy(process.env.TOKEN_ADDRESS, process.env.NFT_ADDRESS);
+  const mp = await Marketplace.deploy(
+    process.env.TOKEN_ADDRESS,
+    process.env.NFT_NAME_FULL,
+    process.env.NFT_SYMBOL
+  );
   await mp.deployed();
   console.log(`${process.env.MARKETPLACE_NAME} deployed to ${mp.address}`);
+
+  // Getting NFT contract address
+  const nftAddrs = await mp.nft();
+  console.log(`${process.env.NFT_NAME_FULL} deployed to ${nftAddrs}`);
 
   console.log("Done!");
 
   // Sync env file
   fs.appendFileSync(
     `.env-${network}`,
-    `\r\# Deployed at \rMARKETPLACE_ADDRESS=${mp.address}\r`
+    `\r\# Deployed at \rMARKETPLACE_ADDRESS=${mp.address}\r
+     \r\# Deployed at \rNFT_ADDRESS=${nftAddrs}\r`
   );
 }
 
