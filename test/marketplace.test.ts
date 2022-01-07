@@ -254,15 +254,12 @@ describe("Marketplace", function () {
       // Minting 2 items
       await mp.createItem(owner.address, birdURI);
       await mp.createItem(alice.address, coronaURI);
-      // Approving items to Marketplace
+      // Approving & listing first item
       await nft.approve(mp.address, firstItem);
-      await nft.connect(alice).approve(mp.address, secondItem);
-      // Listing items
       await mp.listItem(firstItem, twentyTokens);
-      await mp.connect(alice).listItem(secondItem, twentyTokens);
     });
 
-    it("Should be able to get all items", async () => {
+    it("Should be able to get all listed items", async () => {
       // Some crazy experiments
       // console.log(await mp.estimateGas.getAllListedItems());
       // for (let i = 3; i < 3400; i += 1) {
@@ -272,19 +269,21 @@ describe("Marketplace", function () {
       // }
       // console.log("Done!");
       // console.log(await mp.estimateGas.getAllListedItems());
-      const items = await mp.getAllItems();
-      expect(items.length).to.be.equal(2);
+      const items = await mp.getListedItems();
+      expect(items.length).to.be.equal(1);
+      expect(items[0].price).to.be.equal(twentyTokens);
       expect(items[0].owner).to.be.equal(owner.address);
-      expect(items[1].owner).to.be.equal(alice.address);
-      expect(items[0].isListed).to.be.equal(true);
-      expect(items[1].isListed).to.be.equal(true);
     }).timeout(240000);
 
-    it("Should be able to get listings by item ids", async () => {
-      const item = await mp.listedItems(secondItem);
-      expect(item.owner).to.be.equal(alice.address);
+    it("Should be able to check if item is listed", async () => {
+      expect(await mp.isListed(firstItem)).to.be.equal(true);
+      expect(await mp.isListed(secondItem)).to.be.equal(false);
+    });
+
+    it("Should be able to get items by itemId", async () => {
+      const item = await mp.listedItems(firstItem);
       expect(item.price).to.be.equal(twentyTokens);
-      expect(item.isListed).to.be.equal(true);
+      expect(item.owner).to.be.equal(owner.address);
     });
   });
 });
