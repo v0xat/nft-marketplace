@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "./assets/erc20/AcademyToken.sol";
 import "./assets/erc721/EssentialImages.sol";
@@ -13,8 +14,10 @@ import "./assets/erc721/EssentialImages.sol";
 /** @title Simple NFT marketplace. */
 contract Marketplace is IERC721Receiver, Ownable, Pausable {
   using SafeERC20 for IERC20;
+  using Counters for Counters.Counter;
 
-  uint256 public numListed;
+  Counters.Counter private _numListed; 
+
   address public token;
   address public nft;
 
@@ -26,7 +29,6 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   struct Item {
     uint256 price;
     address owner;
-    bool isListed;
   }
 
   mapping(uint256 => Item) public listedItems; // itemID => Item
@@ -62,66 +64,79 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     external
     onlyOwner
     whenNotPaused
-    returns (uint256 itemID)
+    returns (uint256 itemId)
   {
-    itemID = EssentialImages(nft).safeMint(to, tokenURI);
-    emit CreatedItem(msg.sender, to, itemID); // ?
+    itemId = EssentialImages(nft).safeMint(to, tokenURI);
+    emit CreatedItem(msg.sender, to, itemId); // ???
   }
 
-  function listItem(uint256 itemID, uint256 price)
+  function listItem(uint256 itemId, uint256 price)
     external
     whenNotPaused
   {
     require(price > 0, "Price can't be zero");
 
-    EssentialImages(nft).safeTransferFrom(msg.sender, address(this), itemID);
+    EssentialImages(nft).safeTransferFrom(msg.sender, address(this), itemId);
 
-    listedItems[itemID] = Item({
+    listedItems[itemId] = Item({
       price: price,
-      owner: msg.sender,
-      isListed: true
+      owner: msg.sender
     });
 
-    emit ListedItem(itemID, msg.sender, price);
+    _numListed.increment();
+
+    emit ListedItem(itemId, msg.sender, price);
   }
 
-  function buyItem(uint256 itemID)
+  function buyItem(uint256 itemId)
     external
     whenNotPaused
   {
-    Item memory item = listedItems[itemID];
+    Item memory item = listedItems[itemId];
     require(msg.sender != item.owner, "Can't buy from yourself");
-    require(item.isListed, "Item not listed");
+    require(item.price > 0, "Item not listed");
 
     // Transfer tokens
     IERC20(token).safeTransferFrom(msg.sender, item.owner, item.price);
 
     // Transfer Item
-    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, itemID);
-    listedItems[itemID].isListed = false;
+    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, itemId);
+    listedItems[itemId].price = 0;
 
-    emit Purchase(itemID, msg.sender, item.owner, item.price);
+    _numListed.decrement();
+
+    emit Purchase(itemId, msg.sender, item.owner, item.price);
   }
 
-  function cancel(uint256 itemID)
+  function cancel(uint256 itemId)
     external
     whenNotPaused
   {
-    Item storage item = listedItems[itemID];
+    Item storage item = listedItems[itemId];
     require(msg.sender == item.owner, "Not your item");
 
-    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, itemID);
-    item.isListed = false;
+    EssentialImages(nft).safeTransferFrom(address(this), msg.sender, itemId);
+    item.price = 0;
 
-    emit CancelListing(itemID, msg.sender);
+    _numListed.decrement();
+
+    emit CancelListing(itemId, msg.sender);
   }
 
-  function getAllItems() external view returns(Item[] memory) {
-    uint256 numItems = EssentialImages(nft).tokenIds();
-    Item[] memory listed = new Item[](numItems);
-    for (uint256 i = 1; i <= numItems; i++) {
-      // Here we assign to `i-1` because listedItems indexes start with 1
-      listed[i - 1] = listedItems[i];
+  function isListed(uint256 itemId) external view returns(bool) {
+    return listedItems[itemId].price > 0;
+  }
+
+  function getListedItems() external view returns(Item[] memory) {
+    uint256 numListed = _numListed.current();
+    Item[] memory listed = new Item[](numListed);
+
+    uint256 counter;    
+    for (uint256 i = 1; i <= numListed; i++) {
+      if (listedItems[i].price > 0) {
+        listed[counter] = listedItems[i];
+        counter++;
+      }
     }
     return listed;
   }
