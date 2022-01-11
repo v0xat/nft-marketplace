@@ -44,15 +44,14 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   struct Order {
     uint256 itemId;
     uint256 basePrice;
-    uint256 listedAt;
     uint256 expiresAt;
+    uint256 endTime;
     uint256 numBids;
     uint256 highestBid;
     uint256 bidStep;
     address maker;
     address highestBidder;
     OrderType orderType;
-    bool isOpen;
   }
 
   mapping(uint256 => Order) public orders; // orderId => Order
@@ -119,15 +118,14 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     orders[_numOrders.current()] = Order({
       itemId: itemId,
       basePrice: basePrice,
-      listedAt: block.timestamp,
       expiresAt: 0,
+      endTime: 0,
       numBids: 0,
       highestBid: 0,
       bidStep: 0,
       maker: msg.sender,
       highestBidder: msg.sender,
-      orderType: OrderType.FixedPrice,
-      isOpen: true
+      orderType: OrderType.FixedPrice
     });
 
     acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
@@ -147,15 +145,14 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     orders[_numOrders.current()] = Order({
       itemId: itemId,
       basePrice: basePrice,
-      listedAt: block.timestamp,
       expiresAt: block.timestamp + biddingTime,
+      endTime: 0,
       numBids: 0,
       highestBid: basePrice,
       bidStep: bidStep,
       maker: msg.sender,
       highestBidder: msg.sender,
-      orderType: OrderType.Auction,
-      isOpen: true
+      orderType: OrderType.Auction
     });
 
     acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
@@ -170,15 +167,13 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     Order memory order = orders[orderId];
     require(order.orderType == OrderType.FixedPrice, "Can't buy auction order");
     require(msg.sender != order.maker, "Can't buy from yourself");
-    require(order.isOpen, "No such order");
+    require(order.basePrice > 0 && order.endTime == 0, "Order cancelled or not exist");
 
     // Transfer NFT to `msg.sender` and ACDM to order owner
-    _exchange(orderId, order.itemId, order.basePrice, order.maker, msg.sender);
+    _exchange(orderId, order.itemId, order.basePrice, msg.sender, order.maker, msg.sender);
 
     // Closing order
     _cancelOrder(orderId, true);
-
-    emit Purchase(orderId, order.itemId, order.maker, msg.sender, order.basePrice);
   }
 
   function makeBid(uint256 orderId, uint256 bidAmount)
@@ -187,8 +182,6 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     Order storage order = orders[orderId];
     require(bidAmount > (order.highestBid + order.bidStep), "Bid must be more than highest + bid step");
     require(order.expiresAt > block.timestamp, "Bidding time is over");
-    // require(order.isOpen, "No such order");
-    // require(order.orderType == OrderType.Auction, "Can't bid on fixed price order");
     require(msg.sender != order.maker, "Can't bid on your own order");
 
     // Transfer ACDM tokens
@@ -196,7 +189,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
 
     // Return ACDM to prev bidder
     if (order.numBids > 0) {
-      acdmToken.transfer(order.highestBidder, order.highestBid);
+      IERC20(acdmToken).safeTransfer(order.highestBidder, order.highestBid);
     }
 
     order.numBids++;
@@ -219,17 +212,17 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
 
   function finishAuction(uint256 orderId) external {
     Order memory order = orders[orderId];
-    require(order.isOpen, "No such order");
+    require(order.endTime == 0, "No such order");
     require(msg.sender == order.maker, "Not the order creator");
     require(order.orderType == OrderType.Auction, "Not an auction order");
     require(order.expiresAt <= block.timestamp, "Can't finish before bidding time");
 
     if (order.numBids > 2) {
-      _exchange(orderId, order.itemId, order.highestBid, order.maker, order.highestBidder);
+      _exchange(orderId, order.itemId, order.highestBid, address(0), order.maker, order.highestBidder);
       _cancelOrder(orderId, true);
     } else {
       // Return ACDM to latest bidder if exists
-      if (order.numBids == 1) acdmToken.transfer(order.highestBidder, order.highestBid);
+      if (order.numBids == 1) IERC20(acdmToken).safeTransfer(order.highestBidder, order.highestBid);
       _cancelOrder(orderId, false);
     }
 
@@ -240,10 +233,13 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     uint256 orderId,
     uint256 itemId,
     uint256 price,
+    address payer,
     address itemOwner,
     address itemRecipient
   ) private {
-    acdmToken.transfer(itemOwner, price);
+    if (payer != address(0)) IERC20(acdmToken).safeTransferFrom(payer, itemOwner, price);
+    else IERC20(acdmToken).safeTransfer(itemOwner, price);
+
     acdmItems.safeTransferFrom(address(this), itemRecipient, itemId);
 
     emit Purchase(orderId, itemId, itemOwner, itemRecipient, price);
@@ -251,7 +247,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
 
   function _cancelOrder(uint256 orderId, bool isSold) private {
     Order storage order = orders[orderId];
-    order.isOpen = false;
+    order.endTime = block.timestamp;
 
     // Return item if it's not sold
     if (!isSold) {
