@@ -175,9 +175,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     // Transfer ACDM tokens
     IERC20(acdmToken).safeTransferFrom(msg.sender, order.maker, order.basePrice);
 
-    // Transfer Item
-    acdmItems.safeTransferFrom(address(this), msg.sender, order.itemId);
-    orders[orderId].isOpen = false;
+    // Closing order
+    _cancelOrder(orderId, true);
 
     emit Purchase(orderId, order.itemId, order.maker, msg.sender, order.basePrice);
   }
@@ -206,10 +205,10 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     whenNotPaused
   {
     Order memory order = orders[orderId];
-    require(msg.sender == order.maker, "Not the creator of the order");
+    require(msg.sender == order.maker, "Not the order creator");
     require(order.orderType == OrderType.FixedPrice, "Can't cancel an auction order");
 
-    _cancelOrder(orderId, OrderType.FixedPrice);
+    _cancelOrder(orderId, false);
   }
 
   function finishAuction(uint256 orderId) external {
@@ -217,13 +216,16 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     require(order.orderType == OrderType.FixedPrice, "Not an auction order");
   }
 
-  function _cancelOrder(uint256 orderId, OrderType orderType) private {
+  function _cancelOrder(uint256 orderId, bool isSold) private {
     Order storage order = orders[orderId];
-    order.expiresAt = block.timestamp;
+    order.isOpen = false;
 
-    acdmItems.safeTransferFrom(address(this), msg.sender, order.itemId);
+    // Return item if it's not sold
+    if (!isSold) {
+      acdmItems.safeTransferFrom(address(this), order.maker, order.itemId);
+    }
 
-    emit CancelledOrder(orderId, msg.sender);
+    emit CancelledOrder(orderId, isSold);
   }
 
   // function isListed(uint256 itemId) external view returns(bool) {
