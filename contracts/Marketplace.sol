@@ -55,15 +55,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     bool isOpen;
   }
 
-  // struct Bids {
-  //   uint256 numBids;
-  //   uint256 highestBid;
-  //   uint256 bidStep;
-  // }
-
   mapping(uint256 => Order) public orders; // orderId => Order
-
-  // mapping(uint256 => Bids) public bids; // orderId => Bids
 
   constructor(
     uint256 _biddingTime,
