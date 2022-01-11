@@ -55,7 +55,7 @@ describe("Marketplace", function () {
     await mp.deployed();
 
     // Getting NFT contract
-    const nftAddr: string = await mp.nft();
+    const nftAddr: string = await mp.acdmItems();
     nft = await ethers.getContractAt(nftName, nftAddr);
 
     // Grant Minter & Burner role to admin
@@ -81,11 +81,11 @@ describe("Marketplace", function () {
     });
 
     it("Should set right token contract address", async () => {
-      expect(await mp.token()).to.be.equal(acdmToken.address);
+      expect(await mp.acdmToken()).to.be.equal(acdmToken.address);
     });
 
     it("Should set right NFT contract address", async () => {
-      expect(await mp.nft()).to.be.equal(nft.address);
+      expect(await mp.acdmItems()).to.be.equal(nft.address);
     });
 
     it("Should set minter & burner role to owner", async () => {

@@ -18,8 +18,8 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
 
   Counters.Counter private _numListed; 
 
-  address public token;
-  EssentialImages public nft;
+  AcademyToken public acdmToken;
+  EssentialImages public acdmItems;
 
   event ListedItem(uint256 indexed itemID, address indexed owner, uint256 price);
   event CancelListing(uint256 indexed itemID, address indexed owner);
@@ -33,8 +33,8 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   mapping(uint256 => Item) public listedItems; // itemID => Item
 
   constructor(address _token, string memory nftName, string memory nftSymbol) {
-    token = _token;
-    nft = new EssentialImages(nftName, nftSymbol);
+    acdmToken = AcademyToken(_token);
+    acdmItems = new EssentialImages(nftName, nftSymbol);
   }
 
   /**
@@ -65,7 +65,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     whenNotPaused
     returns (uint256 itemId)
   {
-    itemId = nft.safeMint(to, tokenURI);
+    itemId = acdmItems.safeMint(to, tokenURI);
   }
 
   function listItem(uint256 itemId, uint256 price)
@@ -74,7 +74,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
   {
     require(price > 0, "Price can't be zero");
 
-    nft.safeTransferFrom(msg.sender, address(this), itemId);
+    acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
 
     listedItems[itemId] = Item({
       price: price,
@@ -94,11 +94,11 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     require(msg.sender != item.owner, "Can't buy from yourself");
     require(item.price > 0, "Item not listed");
 
-    // Transfer tokens
-    IERC20(token).safeTransferFrom(msg.sender, item.owner, item.price);
+    // Transfer ACDM tokens
+    IERC20(acdmToken).safeTransferFrom(msg.sender, item.owner, item.price);
 
     // Transfer Item
-    nft.safeTransferFrom(address(this), msg.sender, itemId);
+    acdmItems.safeTransferFrom(address(this), msg.sender, itemId);
     listedItems[itemId].price = 0;
 
     _numListed.decrement();
@@ -113,7 +113,7 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     Item storage item = listedItems[itemId];
     require(msg.sender == item.owner, "Not your item");
 
-    nft.safeTransferFrom(address(this), msg.sender, itemId);
+    acdmItems.safeTransferFrom(address(this), msg.sender, itemId);
     item.price = 0;
 
     _numListed.decrement();
