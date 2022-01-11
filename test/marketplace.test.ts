@@ -18,6 +18,7 @@ const nftSymbol = "EI";
 
 // Test data
 const biddingTime = 259200; // 3 days in seconds
+const bidStep = ethers.utils.parseUnits("1.0", decimals);
 const zeroAddr = ethers.constants.AddressZero;
 const birdURI: string = testData.bird.metadata;
 const coronaURI: string = testData.corona.metadata;
@@ -41,10 +42,11 @@ describe("Marketplace", function () {
     ACDMtoken: ContractFactory,
     owner: SignerWithAddress,
     alice: SignerWithAddress,
-    bob: SignerWithAddress;
+    bob: SignerWithAddress,
+    addrs: SignerWithAddress[];
 
   before(async () => {
-    [owner, alice, bob] = await ethers.getSigners();
+    [owner, alice, bob, ...addrs] = await ethers.getSigners();
     ACDMtoken = await ethers.getContractFactory(tokenName);
     Marketplace = await ethers.getContractFactory("Marketplace");
   });
@@ -73,8 +75,20 @@ describe("Marketplace", function () {
     await acdmToken.grantRole(burnerRole, owner.address);
 
     // Mint some tokens
+    await acdmToken.mint(addrs[0].address, twentyTokens);
     await acdmToken.mint(owner.address, twentyTokens);
     await acdmToken.mint(alice.address, twentyTokens);
+    await acdmToken.mint(bob.address, twentyTokens.mul(2));
+
+    // Approve token to marketplace
+    await acdmToken.approve(mp.address, twentyTokens);
+    await acdmToken.connect(alice).approve(mp.address, twentyTokens);
+    await acdmToken.connect(bob).approve(mp.address, twentyTokens.mul(2));
+    await acdmToken.connect(addrs[0]).approve(mp.address, twentyTokens);
+
+    // Minting 2 items
+    await mp.connect(alice).createItem(owner.address, birdURI);
+    await mp.connect(alice).createItem(alice.address, coronaURI);
   });
 
   describe("Deployment", function () {
@@ -132,28 +146,19 @@ describe("Marketplace", function () {
     it("Creator should be able to create item", async () => {
       await expect(mp.connect(alice).createItem(owner.address, birdURI))
         .and.to.emit(nft, "Transfer")
-        .withArgs(zeroAddr, owner.address, firstItem);
-
-      expect(await nft.tokenURI(firstItem)).to.equal(birdURI);
+        .withArgs(zeroAddr, owner.address, 3);
+      expect(await nft.tokenURI(3)).to.equal(birdURI);
     });
   });
 
-  describe("Fixed price market order", function () {
+  describe("Fixed price orders", function () {
     beforeEach(async () => {
-      // Minting 2 items
-      await mp.connect(alice).createItem(owner.address, birdURI);
-      await mp.connect(alice).createItem(alice.address, coronaURI);
-
-      // Approving owner's item to Marketplace
+      // Approving items to Marketplace
       await nft.approve(mp.address, firstItem);
       await nft.connect(alice).approve(mp.address, secondItem);
 
       // Listing first item
-      await mp.listFixedPrice(firstItem, twentyTokens);
-
-      // Approving tokens
-      await acdmToken.approve(mp.address, tenTokens);
-      await acdmToken.connect(alice).approve(mp.address, twentyTokens);
+      await mp.listFixedPrice(firstItem, tenTokens);
     });
 
     describe("Listing item", function () {
@@ -170,30 +175,24 @@ describe("Marketplace", function () {
           .and.to.emit(nft, "Transfer")
           .withArgs(alice.address, mp.address, secondItem);
 
-        const order = await mp.orders(firstOrder);
-        expect(order.isOpen).to.be.equal(true);
+        const order = await mp.orders(secondOrder);
+        expect(order.basePrice).to.be.equal(tenTokens);
       });
     });
 
     describe("Cancelling order", function () {
       it("Can cancel only own order", async () => {
         await expect(mp.connect(alice).cancelOrder(firstOrder)).to.be.revertedWith(
-          "Not the creator of the order"
+          "Not the order creator"
         );
       });
 
       it("Cancelling order emits events", async () => {
-        let order = await mp.orders(firstOrder);
-        expect(order.isOpen).to.be.equal(true);
-
         await expect(mp.cancelOrder(firstOrder))
           .to.emit(mp, "CancelledOrder")
-          .withArgs(firstOrder, owner.address)
+          .withArgs(firstOrder, false)
           .and.to.emit(nft, "Transfer")
           .withArgs(mp.address, owner.address, firstItem);
-
-        order = await mp.orders(firstOrder);
-        expect(order.isOpen).to.be.equal(false);
       });
     });
 
@@ -204,14 +203,204 @@ describe("Marketplace", function () {
         );
       });
 
+      it("Can't buy an auction order", async () => {
+        await mp.connect(alice).listAuction(secondItem, tenTokens, bidStep);
+        await expect(mp.buyOrder(secondOrder)).to.be.revertedWith(
+          "Can't buy auction order"
+        );
+      });
+
+      it("Can't buy cancelled or non-existent order", async () => {
+        await expect(mp.connect(alice).buyOrder(firstOrder));
+        await expect(mp.connect(alice).buyOrder(firstOrder)).to.be.revertedWith(
+          "Order cancelled or not exist"
+        );
+        await expect(mp.connect(alice).buyOrder(123)).to.be.revertedWith(
+          "Order cancelled or not exist"
+        );
+      });
+
       it("Buying emits events", async () => {
         await expect(mp.connect(alice).buyOrder(firstOrder))
           .to.emit(mp, "Purchase")
-          .withArgs(firstOrder, firstItem, owner.address, alice.address, twentyTokens)
+          .withArgs(firstOrder, firstItem, owner.address, alice.address, tenTokens)
           .and.to.emit(nft, "Transfer")
           .withArgs(mp.address, alice.address, firstItem)
           .and.to.emit(acdmToken, "Transfer")
-          .withArgs(alice.address, owner.address, twentyTokens);
+          .withArgs(alice.address, owner.address, tenTokens)
+          .and.to.emit(mp, "CancelledOrder")
+          .withArgs(firstOrder, true);
+      });
+    });
+  });
+
+  describe("Auction orders", function () {
+    beforeEach(async () => {
+      // Approving owner's item to Marketplace
+      await nft.approve(mp.address, firstItem);
+      await nft.connect(alice).approve(mp.address, secondItem);
+    });
+
+    describe("Placing order", function () {
+      it("Can't place order with zero price", async () => {
+        await expect(mp.listAuction(firstItem, 0, bidStep)).to.be.revertedWith(
+          "Base price can't be zero"
+        );
+      });
+
+      it("Can't place order with zero bidStep", async () => {
+        await expect(mp.listAuction(firstItem, tenTokens, 0)).to.be.revertedWith(
+          "Bid step can't be zero"
+        );
+      });
+
+      it("Listing emits events", async () => {
+        await expect(mp.listAuction(firstItem, tenTokens, bidStep))
+          .to.emit(mp, "PlacedOrder")
+          .withArgs(firstOrder, firstItem, owner.address, tenTokens)
+          .and.to.emit(nft, "Transfer")
+          .withArgs(owner.address, mp.address, firstItem);
+      });
+    });
+
+    describe("Bidding", function () {
+      beforeEach(async () => {
+        // Listing items
+        await mp.connect(alice).listAuction(secondItem, tenTokens, bidStep);
+      });
+
+      it("Can't bid less than the highest bid", async () => {
+        await expect(mp.makeBid(firstOrder, tenTokens)).to.be.revertedWith(
+          "Bid must be more than highest + bid step"
+        );
+      });
+
+      it("Can't bid less than the highest bid + bid step", async () => {
+        await expect(mp.makeBid(firstOrder, tenTokens.add(bidStep))).to.be.revertedWith(
+          "Bid must be more than highest + bid step"
+        );
+      });
+
+      it("Can't make a bid on a non-existent order", async () => {
+        await expect(mp.makeBid(123, tenTokens)).to.be.revertedWith(
+          "Bidding time is over"
+        );
+      });
+
+      it("Can't make a bid on your own order", async () => {
+        await expect(
+          mp.connect(alice).makeBid(firstOrder, twentyTokens)
+        ).to.be.revertedWith("Can't bid on your own order");
+      });
+
+      it("Can't make a bid on fixed price order", async () => {
+        await mp.listFixedPrice(firstItem, tenTokens);
+        await expect(
+          mp.connect(alice).makeBid(secondOrder, twentyTokens)
+        ).to.be.revertedWith("Bidding time is over");
+      });
+
+      it("Can't make a bid after the end of bidding time", async () => {
+        await ethers.provider.send("evm_increaseTime", [biddingTime]);
+        await expect(mp.makeBid(firstOrder, twentyTokens)).to.be.revertedWith(
+          "Bidding time is over"
+        );
+      });
+
+      it("Bidding emits event", async () => {
+        await expect(mp.makeBid(firstOrder, twentyTokens))
+          .to.emit(mp, "PlacedBid")
+          .withArgs(firstOrder, owner.address, twentyTokens)
+          .and.to.emit(acdmToken, "Transfer")
+          .withArgs(owner.address, mp.address, twentyTokens);
+
+        const order = await mp.orders(firstOrder);
+        expect(order.numBids).to.be.equal(1);
+        expect(order.highestBid).to.be.equal(twentyTokens);
+        expect(order.highestBidder).to.be.equal(owner.address);
+      });
+
+      it("Tokens are returned to previous bidder after a new highest bid", async () => {
+        const ownerBalance = await acdmToken.balanceOf(owner.address);
+        await mp.makeBid(firstOrder, twentyTokens);
+        let order = await mp.orders(firstOrder);
+        expect(order.highestBidder).to.be.equal(owner.address);
+
+        // Check highest bidder changed
+        await mp.connect(bob).makeBid(firstOrder, twentyTokens.mul(2));
+        order = await mp.orders(firstOrder);
+        expect(order.highestBidder).to.be.equal(bob.address);
+
+        // Check owner got his tokens back
+        expect(await acdmToken.balanceOf(owner.address)).to.be.equal(ownerBalance);
+      });
+    });
+
+    describe("Finish auction", function () {
+      beforeEach(async () => {
+        // Listing items
+        await mp.listAuction(firstItem, bidStep, bidStep);
+      });
+
+      it("Can't finish fixed price order", async () => {
+        await mp.connect(alice).listFixedPrice(secondItem, tenTokens);
+        await expect(mp.connect(alice).finishAuction(secondOrder)).to.be.revertedWith(
+          "Not an auction order"
+        );
+      });
+
+      it("Can't finish before bidding time", async () => {
+        await expect(mp.finishAuction(firstOrder)).to.be.revertedWith(
+          "Can't finish before bidding time"
+        );
+      });
+
+      it("Can't finish cancelled order", async () => {
+        await ethers.provider.send("evm_increaseTime", [biddingTime]);
+        await mp.finishAuction(firstOrder);
+        await expect(mp.finishAuction(firstOrder)).to.be.revertedWith("No such order");
+      });
+
+      it("Only owner can finish auction", async () => {
+        await expect(mp.connect(alice).finishAuction(firstOrder)).to.be.revertedWith(
+          "Not the order creator"
+        );
+      });
+
+      it("Finish and sell the item (more than 2 bidders)", async () => {
+        // Making bids
+        await mp.connect(alice).makeBid(firstOrder, bidStep.mul(3));
+        await mp.connect(addrs[0]).makeBid(firstOrder, bidStep.mul(5));
+        await mp.connect(bob).makeBid(firstOrder, tenTokens);
+
+        // Skipping time
+        await ethers.provider.send("evm_increaseTime", [biddingTime]);
+
+        // Checking all events
+        await expect(mp.finishAuction(firstOrder))
+          .to.emit(mp, "AuctionFinished")
+          .withArgs(firstOrder, 3) // '3' is the number of bids
+          .and.to.emit(nft, "Transfer")
+          .withArgs(mp.address, bob.address, firstItem)
+          .and.to.emit(acdmToken, "Transfer")
+          .withArgs(mp.address, owner.address, tenTokens);
+      });
+
+      it("Finish and keep the item (less than 2 bidders)", async () => {
+        // Making bids
+        await mp.connect(alice).makeBid(firstOrder, tenTokens);
+
+        // Skipping time
+        await ethers.provider.send("evm_increaseTime", [biddingTime]);
+
+        // Checking all events
+        await expect(mp.finishAuction(firstOrder))
+          .to.emit(mp, "AuctionFinished")
+          .withArgs(firstOrder, 1) // '1' is the number of bids
+          .and.to.emit(acdmToken, "Transfer")
+          .withArgs(mp.address, alice.address, tenTokens)
+          .and.to.emit(nft, "Transfer")
+          .withArgs(mp.address, owner.address, firstItem);
       });
     });
   });
