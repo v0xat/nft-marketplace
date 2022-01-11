@@ -50,6 +50,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     uint256 highestBid;
     uint256 bidStep;
     address maker;
+    address highestBidder;
     OrderType orderType;
     bool isOpen;
   }
@@ -132,6 +133,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
       highestBid: 0,
       bidStep: 0,
       maker: msg.sender,
+      highestBidder: msg.sender,
       orderType: OrderType.FixedPrice,
       isOpen: true
     });
@@ -156,9 +158,10 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
       listedAt: block.timestamp,
       expiresAt: block.timestamp + biddingTime,
       numBids: 0,
-      highestBid: 0,
-      bidStep: 0,
+      highestBid: basePrice,
+      bidStep: bidStep,
       maker: msg.sender,
+      highestBidder: msg.sender,
       orderType: OrderType.Auction,
       isOpen: true
     });
@@ -189,9 +192,15 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   function makeBid(uint256 orderId, uint256 bidAmount)
     external
   {
-    Order memory order = orders[orderId];
-    require(msg.sender != order.maker, "Can't buy from yourself");
-    require(order.basePrice > 0, "Item not listed");
+    Order storage order = orders[orderId];
+    require(order.isOpen, "No such order");
+    require(msg.sender != order.maker, "Can't bid on your own order");
+    require(order.orderType == OrderType.Auction, "Can't bid on fixed price order");
+    require(bidAmount > (order.highestBid + order.bidStep), "Bid must be more than highest + bid step");
+
+    order.numBids++;
+    order.highestBid = bidAmount;
+    order.highestBidder = msg.sender;
 
     // Transfer ACDM tokens
     IERC20(acdmToken).safeTransferFrom(msg.sender, address(this), bidAmount);
