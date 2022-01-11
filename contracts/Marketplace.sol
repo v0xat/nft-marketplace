@@ -176,15 +176,16 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     whenNotPaused
   {
     Order memory order = orders[orderId];
+    require(order.orderType == OrderType.FixedPrice, "Can't buy auction order");
     require(msg.sender != order.maker, "Can't buy from yourself");
-    require(order.basePrice > 0, "Item not listed");
+    require(order.isOpen, "No such order");
 
     // Transfer ACDM tokens
     IERC20(acdmToken).safeTransferFrom(msg.sender, order.maker, order.basePrice);
 
     // Transfer Item
     acdmItems.safeTransferFrom(address(this), msg.sender, order.itemId);
-    orders[orderId].basePrice = 0;
+    orders[orderId].isOpen = false;
 
     emit Purchase(orderId, order.itemId, order.maker, msg.sender, order.basePrice);
   }
