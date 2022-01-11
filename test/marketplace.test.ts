@@ -169,6 +169,9 @@ describe("Marketplace", function () {
           .withArgs(secondOrder, secondItem, alice.address, tenTokens)
           .and.to.emit(nft, "Transfer")
           .withArgs(alice.address, mp.address, secondItem);
+
+        const order = await mp.orders(firstOrder);
+        expect(order.isOpen).to.be.equal(true);
       });
     });
 
@@ -180,11 +183,17 @@ describe("Marketplace", function () {
       });
 
       it("Cancelling order emits events", async () => {
+        let order = await mp.orders(firstOrder);
+        expect(order.isOpen).to.be.equal(true);
+
         await expect(mp.cancelOrder(firstOrder))
           .to.emit(mp, "CancelledOrder")
           .withArgs(firstOrder, owner.address)
           .and.to.emit(nft, "Transfer")
           .withArgs(mp.address, owner.address, firstItem);
+
+        order = await mp.orders(firstOrder);
+        expect(order.isOpen).to.be.equal(false);
       });
     });
 

@@ -51,6 +51,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     uint256 bidStep;
     address maker;
     OrderType orderType;
+    bool isOpen;
   }
 
   // struct Bids {
@@ -131,7 +132,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
       highestBid: 0,
       bidStep: 0,
       maker: msg.sender,
-      orderType: OrderType.FixedPrice
+      orderType: OrderType.FixedPrice,
+      isOpen: true
     });
 
     acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
@@ -143,7 +145,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     external
     whenNotPaused
   {
-    require(basePrice > 0, "Start price can't be zero");
+    require(basePrice > 0, "Base price can't be zero");
     require(bidStep > 0, "Bid step can't be zero");
 
     _numOrders.increment();
@@ -157,7 +159,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
       highestBid: 0,
       bidStep: 0,
       maker: msg.sender,
-      orderType: OrderType.Auction
+      orderType: OrderType.Auction,
+      isOpen: true
     });
 
     acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
