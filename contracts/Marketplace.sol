@@ -4,7 +4,7 @@ pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
@@ -12,13 +12,20 @@ import "./assets/erc20/AcademyToken.sol";
 import "./assets/erc721/EssentialImages.sol";
 
 /** @title Simple NFT marketplace. */
-contract Marketplace is IERC721Receiver, Ownable, Pausable {
+contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   using SafeERC20 for IERC20;
   using Counters for Counters.Counter;
 
+  // Create a new role identifier for the NFT creator role
+  bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
+
+  // Counts the amount of items that are currently listed on the marketplace
   Counters.Counter private _numListed; 
 
+  // Address of the token contract used to pay for items
   AcademyToken public acdmToken;
+
+  // Address of the NFT contract
   EssentialImages public acdmItems;
 
   event ListedItem(uint256 indexed itemID, address indexed owner, uint256 price);
@@ -30,11 +37,18 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     address owner;
   }
 
+  // Used to store listed items price & owner address
   mapping(uint256 => Item) public listedItems; // itemID => Item
 
-  constructor(address _token, string memory nftName, string memory nftSymbol) {
+  constructor(address _token, address _creator, string memory _nftName, string memory _nftSymbol) {
     acdmToken = AcademyToken(_token);
-    acdmItems = new EssentialImages(nftName, nftSymbol);
+    acdmItems = new EssentialImages(_nftName, _nftSymbol);
+
+    // Grant the contract deployer the default admin role: it will be able
+    // to grant and revoke any roles
+    _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    // Grant the NFT creator role to a specified account
+    _setupRole(CREATOR_ROLE, _creator);
   }
 
   /**
@@ -48,20 +62,20 @@ contract Marketplace is IERC721Receiver, Ownable, Pausable {
     @dev Available only to admin.
     Prevents calls to functions with `whenNotPaused` modifier.
   */
-  function pause() external onlyOwner {
+  function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
     _pause();
   }
 
   /** @notice Unpausing functions of contract.
     @dev Available only to admin.
   */
-  function unpause() external onlyOwner {
+  function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
     _unpause();
   }
 
   function createItem(address to, string memory tokenURI)
     external
-    onlyOwner
+    onlyRole(CREATOR_ROLE)
     whenNotPaused
     returns (uint256 itemId)
   {

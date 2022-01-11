@@ -24,10 +24,11 @@ const firstItem = 1;
 const secondItem = 2;
 
 // AccessControl roles in bytes32 string
-// DEFAULT_ADMIN_ROLE, MINTER_ROLE, BURNER_ROLE
+// DEFAULT_ADMIN_ROLE, MINTER_ROLE, BURNER_ROLE, CREATOR_ROLE
 const adminRole = ethers.constants.HashZero;
 const minterRole = ethers.utils.solidityKeccak256(["string"], ["MINTER_ROLE"]);
 const burnerRole = ethers.utils.solidityKeccak256(["string"], ["BURNER_ROLE"]);
+const creatorRole = ethers.utils.solidityKeccak256(["string"], ["CREATOR_ROLE"]);
 
 describe("Marketplace", function () {
   let mp: Contract,
@@ -50,8 +51,8 @@ describe("Marketplace", function () {
     acdmToken = await ACDMtoken.deploy(tokenName, tokenSymbol);
     await acdmToken.deployed();
 
-    // Deploy Marketplace & NFT contract
-    mp = await Marketplace.deploy(acdmToken.address, nftName, nftSymbol);
+    // Deploy Marketplace & NFT contract, set CREATOR_ROLE to Alice
+    mp = await Marketplace.deploy(acdmToken.address, alice.address, nftName, nftSymbol);
     await mp.deployed();
 
     // Getting NFT contract
@@ -72,15 +73,11 @@ describe("Marketplace", function () {
       expect(await nft.owner()).to.equal(mp.address);
     });
 
-    it("Should set right Marketplace owner", async () => {
-      expect(await mp.owner()).to.equal(owner.address);
-    });
-
-    it("Should set right Token owner", async () => {
+    it("Should set right acdmToken owner", async () => {
       expect(await acdmToken.hasRole(adminRole, owner.address)).to.equal(true);
     });
 
-    it("Should set right token contract address", async () => {
+    it("Should set right acdmToken contract address", async () => {
       expect(await mp.acdmToken()).to.be.equal(acdmToken.address);
     });
 
@@ -88,7 +85,8 @@ describe("Marketplace", function () {
       expect(await mp.acdmItems()).to.be.equal(nft.address);
     });
 
-    it("Should set minter & burner role to owner", async () => {
+    it("Roles should be set correctly", async () => {
+      expect(await mp.hasRole(creatorRole, alice.address)).to.equal(true);
       expect(await acdmToken.hasRole(minterRole, owner.address)).to.equal(true);
       expect(await acdmToken.hasRole(burnerRole, owner.address)).to.equal(true);
     });
@@ -97,29 +95,29 @@ describe("Marketplace", function () {
   describe("Pausable", function () {
     it("Should be able to pause & unpause contract", async () => {
       await mp.pause();
-      await expect(mp.createItem(owner.address, birdURI)).to.be.revertedWith(
-        "Pausable: paused"
-      );
+      await expect(
+        mp.connect(alice).createItem(owner.address, birdURI)
+      ).to.be.revertedWith("Pausable: paused");
       await mp.unpause();
-      await mp.createItem(owner.address, birdURI);
+      await mp.connect(alice).createItem(owner.address, birdURI);
     });
 
     it("Only admin should be able to pause contract", async () => {
       await expect(mp.connect(alice).pause()).to.be.revertedWith(
-        "Ownable: caller is not the owner"
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${adminRole}`
       );
     });
   });
 
   describe("Creating items", function () {
-    it("Only owner should be able to create item", async () => {
-      await expect(
-        mp.connect(alice).createItem(owner.address, birdURI)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+    it("Only address with CREATOR_ROLE should be able to create item", async () => {
+      await expect(mp.createItem(owner.address, birdURI)).to.be.revertedWith(
+        `AccessControl: account ${owner.address.toLowerCase()} is missing role ${creatorRole}`
+      );
     });
 
-    it("Should be able to create item", async () => {
-      await expect(mp.createItem(owner.address, birdURI))
+    it("Creator should be able to create item", async () => {
+      await expect(mp.connect(alice).createItem(owner.address, birdURI))
         .and.to.emit(nft, "Transfer")
         .withArgs(zeroAddr, owner.address, firstItem);
 
@@ -130,8 +128,8 @@ describe("Marketplace", function () {
   describe("Listing items", function () {
     beforeEach(async () => {
       // Minting 2 items
-      await mp.createItem(owner.address, birdURI);
-      await mp.createItem(alice.address, coronaURI);
+      await mp.connect(alice).createItem(owner.address, birdURI);
+      await mp.connect(alice).createItem(alice.address, coronaURI);
 
       // Approving owner's item to Marketplace
       await nft.approve(mp.address, firstItem);
@@ -184,8 +182,8 @@ describe("Marketplace", function () {
   describe("Buying items", function () {
     beforeEach(async () => {
       // Minting 2 items
-      await mp.createItem(owner.address, birdURI);
-      await mp.createItem(alice.address, coronaURI);
+      await mp.connect(alice).createItem(owner.address, birdURI);
+      await mp.connect(alice).createItem(alice.address, coronaURI);
       // Approving items to Marketplace
       await nft.approve(mp.address, firstItem);
       await nft.connect(alice).approve(mp.address, secondItem);
@@ -231,8 +229,8 @@ describe("Marketplace", function () {
   describe("Getters", function () {
     beforeEach(async () => {
       // Minting 2 items
-      await mp.createItem(owner.address, birdURI);
-      await mp.createItem(alice.address, coronaURI);
+      await mp.connect(alice).createItem(owner.address, birdURI);
+      await mp.connect(alice).createItem(alice.address, coronaURI);
       // Approving & listing first item
       await nft.approve(mp.address, firstItem);
       await mp.listItem(firstItem, twentyTokens);
