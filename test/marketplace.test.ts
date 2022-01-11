@@ -17,11 +17,14 @@ const nftName = "EssentialImages";
 const nftSymbol = "EI";
 
 // Test data
+const biddingTime = 259200; // 3 days in seconds
 const zeroAddr = ethers.constants.AddressZero;
 const birdURI: string = testData.bird.metadata;
 const coronaURI: string = testData.corona.metadata;
 const firstItem = 1;
 const secondItem = 2;
+const firstOrder = 1;
+const secondOrder = 2;
 
 // AccessControl roles in bytes32 string
 // DEFAULT_ADMIN_ROLE, MINTER_ROLE, BURNER_ROLE, CREATOR_ROLE
@@ -52,7 +55,13 @@ describe("Marketplace", function () {
     await acdmToken.deployed();
 
     // Deploy Marketplace & NFT contract, set CREATOR_ROLE to Alice
-    mp = await Marketplace.deploy(acdmToken.address, alice.address, nftName, nftSymbol);
+    mp = await Marketplace.deploy(
+      biddingTime,
+      acdmToken.address,
+      alice.address,
+      nftName,
+      nftSymbol
+    );
     await mp.deployed();
 
     // Getting NFT contract
@@ -85,6 +94,10 @@ describe("Marketplace", function () {
       expect(await mp.acdmItems()).to.be.equal(nft.address);
     });
 
+    it("Should set right bidding time", async () => {
+      expect(await mp.biddingTime()).to.be.equal(biddingTime);
+    });
+
     it("Roles should be set correctly", async () => {
       expect(await mp.hasRole(creatorRole, alice.address)).to.equal(true);
       expect(await acdmToken.hasRole(minterRole, owner.address)).to.equal(true);
@@ -95,11 +108,11 @@ describe("Marketplace", function () {
   describe("Pausable", function () {
     it("Should be able to pause & unpause contract", async () => {
       await mp.pause();
-      await expect(
-        mp.connect(alice).createItem(owner.address, birdURI)
-      ).to.be.revertedWith("Pausable: paused");
+      await expect(mp.changeBiddingTime(biddingTime)).to.be.revertedWith(
+        "Pausable: paused"
+      );
       await mp.unpause();
-      await mp.connect(alice).createItem(owner.address, birdURI);
+      await mp.changeBiddingTime(biddingTime);
     });
 
     it("Only admin should be able to pause contract", async () => {
@@ -125,7 +138,7 @@ describe("Marketplace", function () {
     });
   });
 
-  describe("Listing items", function () {
+  describe("Fixed price market order", function () {
     beforeEach(async () => {
       // Minting 2 items
       await mp.connect(alice).createItem(owner.address, birdURI);
@@ -133,134 +146,102 @@ describe("Marketplace", function () {
 
       // Approving owner's item to Marketplace
       await nft.approve(mp.address, firstItem);
-    });
-
-    it("Can't list an unapproved item", async () => {
-      await expect(mp.listItem(secondItem, tenTokens)).to.be.revertedWith(
-        "ERC721: transfer caller is not owner nor approved"
-      );
-    });
-
-    it("Can't list with zero price", async () => {
-      await expect(mp.listItem(firstItem, 0)).to.be.revertedWith("Price can't be zero");
-    });
-
-    it("Listing emits events", async () => {
-      await expect(mp.listItem(firstItem, tenTokens))
-        .to.emit(mp, "ListedItem")
-        .withArgs(firstItem, owner.address, tenTokens)
-        .and.to.emit(nft, "Transfer")
-        .withArgs(owner.address, mp.address, firstItem);
-    });
-
-    it("Can't list item twice", async () => {
-      await mp.listItem(firstItem, tenTokens);
-      await expect(mp.listItem(firstItem, tenTokens)).to.be.revertedWith(
-        "ERC721: transfer of token that is not own"
-      );
-    });
-
-    describe("Delisting", function () {
-      it("Can delist only own items", async () => {
-        await mp.listItem(firstItem, tenTokens);
-        await expect(mp.connect(alice).cancel(firstItem)).to.be.revertedWith(
-          "Not your item"
-        );
-      });
-
-      it("Delisting emits events", async () => {
-        await mp.listItem(firstItem, tenTokens);
-        await expect(mp.cancel(firstItem))
-          .to.emit(mp, "CancelListing")
-          .withArgs(firstItem, owner.address)
-          .and.to.emit(nft, "Transfer")
-          .withArgs(mp.address, owner.address, firstItem);
-      });
-    });
-  });
-
-  describe("Buying items", function () {
-    beforeEach(async () => {
-      // Minting 2 items
-      await mp.connect(alice).createItem(owner.address, birdURI);
-      await mp.connect(alice).createItem(alice.address, coronaURI);
-      // Approving items to Marketplace
-      await nft.approve(mp.address, firstItem);
       await nft.connect(alice).approve(mp.address, secondItem);
-      // Listing items
-      await mp.listItem(firstItem, twentyTokens);
-      await mp.connect(alice).listItem(secondItem, twentyTokens);
-      // Approve tokens
+
+      // Listing first item
+      await mp.listFixedPrice(firstItem, twentyTokens);
+
+      // Approving tokens
       await acdmToken.approve(mp.address, tenTokens);
       await acdmToken.connect(alice).approve(mp.address, twentyTokens);
     });
 
-    it("Can't buy from yourself", async () => {
-      await expect(mp.buyItem(firstItem)).to.be.revertedWith("Can't buy from yourself");
+    describe("Listing item", function () {
+      it("Can't place order with zero price", async () => {
+        await expect(mp.listFixedPrice(firstItem, 0)).to.be.revertedWith(
+          "Base price can't be zero"
+        );
+      });
+
+      it("Listing emits events", async () => {
+        await expect(mp.connect(alice).listFixedPrice(secondItem, tenTokens))
+          .to.emit(mp, "PlacedOrder")
+          .withArgs(secondOrder, secondItem, alice.address, tenTokens)
+          .and.to.emit(nft, "Transfer")
+          .withArgs(alice.address, mp.address, secondItem);
+      });
     });
 
-    it("Can't buy unlisted item", async () => {
-      await expect(mp.buyItem(123)).to.be.revertedWith("Item not listed");
+    describe("Cancelling order", function () {
+      it("Can cancel only own order", async () => {
+        await expect(mp.connect(alice).cancelOrder(firstOrder)).to.be.revertedWith(
+          "Not the creator of the order"
+        );
+      });
+
+      it("Cancelling order emits events", async () => {
+        await expect(mp.cancelOrder(firstOrder))
+          .to.emit(mp, "CancelledOrder")
+          .withArgs(firstOrder, owner.address)
+          .and.to.emit(nft, "Transfer")
+          .withArgs(mp.address, owner.address, firstItem);
+      });
     });
 
-    it("Can't buy with isuffitient balance", async () => {
-      await expect(mp.connect(bob).buyItem(firstItem)).to.be.revertedWith(
-        "ERC20: transfer amount exceeds balance"
-      );
-    });
+    describe("Buying", function () {
+      it("Can't buy from yourself", async () => {
+        await expect(mp.buyOrder(firstOrder)).to.be.revertedWith(
+          "Can't buy from yourself"
+        );
+      });
 
-    it("Can't buy with isuffitient allowance", async () => {
-      await expect(mp.buyItem(secondItem)).to.be.revertedWith(
-        "ERC20: transfer amount exceeds allowance"
-      );
-    });
-
-    it("Buying emits events", async () => {
-      await expect(mp.connect(alice).buyItem(firstItem))
-        .to.emit(mp, "Purchase")
-        .withArgs(firstItem, alice.address, owner.address, twentyTokens)
-        .and.to.emit(nft, "Transfer")
-        .withArgs(mp.address, alice.address, firstItem)
-        .and.to.emit(acdmToken, "Transfer")
-        .withArgs(alice.address, owner.address, twentyTokens);
-    });
-  });
-
-  describe("Getters", function () {
-    beforeEach(async () => {
-      // Minting 2 items
-      await mp.connect(alice).createItem(owner.address, birdURI);
-      await mp.connect(alice).createItem(alice.address, coronaURI);
-      // Approving & listing first item
-      await nft.approve(mp.address, firstItem);
-      await mp.listItem(firstItem, twentyTokens);
-    });
-
-    it("Should be able to get all listed items", async () => {
-      // Some crazy experiments
-      // console.log(await mp.estimateGas.getAllListedItems());
-      // for (let i = 3; i < 3400; i += 1) {
-      //   await mp.createItem(owner.address, birdURI);
-      //   await nft.approve(mp.address, i);
-      //   await mp.listItem(i, tenTokens);
-      // }
-      // console.log("Done!");
-      // console.log(await mp.estimateGas.getAllListedItems());
-      const items = await mp.getListedItems();
-      expect(items.length).to.be.equal(1);
-      expect(items[0].price).to.be.equal(twentyTokens);
-      expect(items[0].owner).to.be.equal(owner.address);
-    }).timeout(240000);
-
-    it("Should be able to check if item is listed", async () => {
-      expect(await mp.isListed(firstItem)).to.be.equal(true);
-      expect(await mp.isListed(secondItem)).to.be.equal(false);
-    });
-
-    it("Should be able to get items by itemId", async () => {
-      const item = await mp.listedItems(firstItem);
-      expect(item.price).to.be.equal(twentyTokens);
-      expect(item.owner).to.be.equal(owner.address);
+      it("Buying emits events", async () => {
+        await expect(mp.connect(alice).buyOrder(firstOrder))
+          .to.emit(mp, "Purchase")
+          .withArgs(firstOrder, firstItem, owner.address, alice.address, twentyTokens)
+          .and.to.emit(nft, "Transfer")
+          .withArgs(mp.address, alice.address, firstItem)
+          .and.to.emit(acdmToken, "Transfer")
+          .withArgs(alice.address, owner.address, twentyTokens);
+      });
     });
   });
+
+  // describe("Getters", function () {
+  //   beforeEach(async () => {
+  //     // Minting 2 items
+  //     await mp.connect(alice).createItem(owner.address, birdURI);
+  //     await mp.connect(alice).createItem(alice.address, coronaURI);
+  //     // Approving & listing first item
+  //     await nft.approve(mp.address, firstItem);
+  //     await mp.listItem(firstItem, twentyTokens);
+  //   });
+
+  //   it("Should be able to get all listed items", async () => {
+  //     // Some crazy experiments
+  //     // console.log(await mp.estimateGas.getAllListedItems());
+  //     // for (let i = 3; i < 3400; i += 1) {
+  //     //   await mp.createItem(owner.address, birdURI);
+  //     //   await nft.approve(mp.address, i);
+  //     //   await mp.listItem(i, tenTokens);
+  //     // }
+  //     // console.log("Done!");
+  //     // console.log(await mp.estimateGas.getAllListedItems());
+  //     const items = await mp.getListedItems();
+  //     expect(items.length).to.be.equal(1);
+  //     expect(items[0].price).to.be.equal(twentyTokens);
+  //     expect(items[0].owner).to.be.equal(owner.address);
+  //   }).timeout(240000);
+
+  //   it("Should be able to check if item is listed", async () => {
+  //     expect(await mp.isListed(firstItem)).to.be.equal(true);
+  //     expect(await mp.isListed(secondItem)).to.be.equal(false);
+  //   });
+
+  //   it("Should be able to get items by itemId", async () => {
+  //     const item = await mp.listedItems(firstItem);
+  //     expect(item.price).to.be.equal(twentyTokens);
+  //     expect(item.owner).to.be.equal(owner.address);
+  //   });
+  // });
 });
