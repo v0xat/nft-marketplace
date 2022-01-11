@@ -30,11 +30,11 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   // Address of the NFT contract
   EssentialImages public acdmItems;
 
-  event PlacedOrder(uint256 indexed orderId, uint256 indexed itemID, address indexed owner, uint256 basePrice);
-  event CancelledOrder(uint256 indexed itemID, address indexed owner);
-  event PlacedBid(uint256 indexed orderId, address indexed bidder, uint256 bidAmount);
-  event AuctionEnded(uint256 indexed itemID, address indexed buyer, address indexed seller, uint256 price);
-  event Purchase(uint256 indexed orderId, uint256 indexed itemID, address maker, address taker, uint256 price);
+  event PlacedOrder(uint256 indexed orderId, uint256 indexed itemId, address indexed owner, uint256 basePrice);
+  event CancelledOrder(uint256 indexed orderId, bool isSold);
+  event PlacedBid(uint256 indexed orderId, address indexed maker, uint256 bidAmount);
+  event AuctionFinished(uint256 indexed orderId, uint256 numBids);
+  event Purchase(uint256 indexed orderId, uint256 indexed itemId, address maker, address taker, uint256 price);
 
   enum OrderType {
     FixedPrice,
@@ -172,8 +172,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     require(msg.sender != order.maker, "Can't buy from yourself");
     require(order.isOpen, "No such order");
 
-    // Transfer ACDM tokens
-    IERC20(acdmToken).safeTransferFrom(msg.sender, order.maker, order.basePrice);
+    // Transfer NFT to `msg.sender` and ACDM to order owner
+    _exchange(orderId, order.itemId, order.basePrice, order.maker, msg.sender);
 
     // Closing order
     _cancelOrder(orderId, true);
@@ -185,17 +185,23 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     external
   {
     Order storage order = orders[orderId];
-    require(order.isOpen, "No such order");
-    require(msg.sender != order.maker, "Can't bid on your own order");
-    require(order.orderType == OrderType.Auction, "Can't bid on fixed price order");
     require(bidAmount > (order.highestBid + order.bidStep), "Bid must be more than highest + bid step");
+    require(order.expiresAt > block.timestamp, "Bidding time is over");
+    // require(order.isOpen, "No such order");
+    // require(order.orderType == OrderType.Auction, "Can't bid on fixed price order");
+    require(msg.sender != order.maker, "Can't bid on your own order");
+
+    // Transfer ACDM tokens
+    IERC20(acdmToken).safeTransferFrom(msg.sender, address(this), bidAmount);
+
+    // Return ACDM to prev bidder
+    if (order.numBids > 0) {
+      acdmToken.transfer(order.highestBidder, order.highestBid);
+    }
 
     order.numBids++;
     order.highestBid = bidAmount;
     order.highestBidder = msg.sender;
-
-    // Transfer ACDM tokens
-    IERC20(acdmToken).safeTransferFrom(msg.sender, address(this), bidAmount);
 
     emit PlacedBid(orderId, msg.sender, bidAmount);
   }
@@ -213,7 +219,34 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
 
   function finishAuction(uint256 orderId) external {
     Order memory order = orders[orderId];
-    require(order.orderType == OrderType.FixedPrice, "Not an auction order");
+    require(order.isOpen, "No such order");
+    require(msg.sender == order.maker, "Not the order creator");
+    require(order.orderType == OrderType.Auction, "Not an auction order");
+    require(order.expiresAt <= block.timestamp, "Can't finish before bidding time");
+
+    if (order.numBids > 2) {
+      _exchange(orderId, order.itemId, order.highestBid, order.maker, order.highestBidder);
+      _cancelOrder(orderId, true);
+    } else {
+      // Return ACDM to latest bidder if exists
+      if (order.numBids == 1) acdmToken.transfer(order.highestBidder, order.highestBid);
+      _cancelOrder(orderId, false);
+    }
+
+    emit AuctionFinished(orderId, order.numBids);
+  }
+
+  function _exchange(
+    uint256 orderId,
+    uint256 itemId,
+    uint256 price,
+    address itemOwner,
+    address itemRecipient
+  ) private {
+    acdmToken.transfer(itemOwner, price);
+    acdmItems.safeTransferFrom(address(this), itemRecipient, itemId);
+
+    emit Purchase(orderId, itemId, itemOwner, itemRecipient, price);
   }
 
   function _cancelOrder(uint256 orderId, bool isSold) private {
