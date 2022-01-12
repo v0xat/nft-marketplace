@@ -89,6 +89,10 @@ describe("Marketplace", function () {
     // Minting 2 items
     await mp.connect(alice).createItem(owner.address, birdURI);
     await mp.connect(alice).createItem(alice.address, coronaURI);
+
+    // Approving items to Marketplace
+    await nft.approve(mp.address, firstItem);
+    await nft.connect(alice).approve(mp.address, secondItem);
   });
 
   describe("Deployment", function () {
@@ -136,6 +140,20 @@ describe("Marketplace", function () {
     });
   });
 
+  describe("Bidding time", function () {
+    it("Only admin can change bidding time", async () => {
+      await expect(mp.connect(alice).changeBiddingTime(biddingTime)).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${adminRole}`
+      );
+    });
+
+    it("Changing the bidding time triggers event", async () => {
+      await expect(mp.changeBiddingTime(biddingTime))
+        .to.emit(mp, "BiddingTimeChanged")
+        .withArgs(owner.address, biddingTime);
+    });
+  });
+
   describe("Creating items", function () {
     it("Only address with CREATOR_ROLE should be able to create item", async () => {
       await expect(mp.createItem(owner.address, birdURI)).to.be.revertedWith(
@@ -153,10 +171,6 @@ describe("Marketplace", function () {
 
   describe("Fixed price orders", function () {
     beforeEach(async () => {
-      // Approving items to Marketplace
-      await nft.approve(mp.address, firstItem);
-      await nft.connect(alice).approve(mp.address, secondItem);
-
       // Listing first item
       await mp.listFixedPrice(firstItem, tenTokens);
     });
@@ -235,12 +249,6 @@ describe("Marketplace", function () {
   });
 
   describe("Auction orders", function () {
-    beforeEach(async () => {
-      // Approving owner's item to Marketplace
-      await nft.approve(mp.address, firstItem);
-      await nft.connect(alice).approve(mp.address, secondItem);
-    });
-
     describe("Placing order", function () {
       it("Can't place order with zero price", async () => {
         await expect(mp.listAuction(firstItem, 0, bidStep)).to.be.revertedWith(
@@ -405,41 +413,49 @@ describe("Marketplace", function () {
     });
   });
 
-  // describe("Getters", function () {
-  //   beforeEach(async () => {
-  //     // Minting 2 items
-  //     await mp.connect(alice).createItem(owner.address, birdURI);
-  //     await mp.connect(alice).createItem(alice.address, coronaURI);
-  //     // Approving & listing first item
-  //     await nft.approve(mp.address, firstItem);
-  //     await mp.listItem(firstItem, twentyTokens);
-  //   });
+  describe("Getters", function () {
+    beforeEach(async () => {
+      await mp.listFixedPrice(firstItem, twentyTokens);
+    });
 
-  //   it("Should be able to get all listed items", async () => {
-  //     // Some crazy experiments
-  //     // console.log(await mp.estimateGas.getAllListedItems());
-  //     // for (let i = 3; i < 3400; i += 1) {
-  //     //   await mp.createItem(owner.address, birdURI);
-  //     //   await nft.approve(mp.address, i);
-  //     //   await mp.listItem(i, tenTokens);
-  //     // }
-  //     // console.log("Done!");
-  //     // console.log(await mp.estimateGas.getAllListedItems());
-  //     const items = await mp.getListedItems();
-  //     expect(items.length).to.be.equal(1);
-  //     expect(items[0].price).to.be.equal(twentyTokens);
-  //     expect(items[0].owner).to.be.equal(owner.address);
-  //   }).timeout(240000);
+    it("Should be able to get order by id", async () => {
+      const order = await mp.orders(firstOrder);
+      expect(order.basePrice).to.be.equal(twentyTokens);
+      expect(order.maker).to.be.equal(owner.address);
+      expect(order.endTime).to.be.equal(0);
+    });
 
-  //   it("Should be able to check if item is listed", async () => {
-  //     expect(await mp.isListed(firstItem)).to.be.equal(true);
-  //     expect(await mp.isListed(secondItem)).to.be.equal(false);
-  //   });
+    it("Should be able to get orders history", async () => {
+      await mp.connect(alice).listFixedPrice(secondItem, tenTokens);
+      await mp.connect(alice).buyOrder(firstOrder);
 
-  //   it("Should be able to get items by itemId", async () => {
-  //     const item = await mp.listedItems(firstItem);
-  //     expect(item.price).to.be.equal(twentyTokens);
-  //     expect(item.owner).to.be.equal(owner.address);
-  //   });
-  // });
+      const orders = await mp.getOrdersHistory();
+      expect(orders.length).to.be.equal(2);
+      expect(orders[0].endTime).to.be.not.equal(ethers.constants.Zero);
+      expect(orders[1].endTime).to.be.equal(0);
+      expect(orders[1].basePrice).to.be.equal(tenTokens);
+    });
+
+    it("Should be able to get current open orders", async () => {
+      await mp.connect(alice).listFixedPrice(secondItem, tenTokens);
+      await mp.connect(alice).buyOrder(firstOrder);
+
+      // for some reason it returns 2 elements
+      const orders = await mp.getOpenOrders();
+      // console.log(orders);
+      expect(orders.length).to.be.equal(2);
+      expect(orders[0].endTime).to.be.equal(0);
+      expect(orders[0].maker).to.be.equal(alice.address);
+      expect(orders[0].basePrice).to.be.equal(tenTokens);
+    });
+
+    it("Should be able to get bids by order id", async () => {
+      // getting bids from PlacedBid event
+    });
+
+    it("Should be able to check if item is listed", async () => {
+      expect(await mp.isListed(firstItem)).to.be.equal(true);
+      expect(await mp.isListed(secondItem)).to.be.equal(false);
+    });
+  });
 });

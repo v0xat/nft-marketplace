@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.10;
 
+// import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -248,23 +249,40 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit CancelledOrder(orderId, isSold);
   }
 
-  // function isListed(uint256 itemId) external view returns(bool) {
-  //   return listedItems[itemId].price > 0;
-  // }
+  function isListed(uint256 itemId) external view returns(bool) {
+    uint256 numOrders = _numOrders.current();
+    for (uint256 i = 1; i <= numOrders; i++) {
+      if (orders[i].endTime == 0 && orders[i].itemId == itemId)
+        return true;
+    }
+    return false;
+  }
 
-  // function getListedItems() external view returns(FixedPriceItem[] memory) {
-  //   uint256 numListed = _numListed.current();
-  //   Item[] memory listed = new Item[](numListed);
+  function getOrdersHistory() external view returns(Order[] memory) {
+    uint256 numOrders = _numOrders.current();
+    Order[] memory ordersArr = new Order[](numOrders);
+   
+    for (uint256 i = 1; i <= numOrders; i++) {
+      ordersArr[i - 1] = orders[i];
+    }
+    return ordersArr;
+  }
 
-  //   uint256 counter;    
-  //   for (uint256 i = 1; i <= numListed; i++) {
-  //     if (listedItems[i].price > 0) {
-  //       listed[counter] = listedItems[i];
-  //       counter++;
-  //     }
-  //   }
-  //   return listed;
-  // }
+  function getOpenOrders() external view returns(Order[] memory) {
+    uint256 numOrders = _numOrders.current();
+    Order[] memory openOrders = new Order[](numOrders);
+
+    uint256 counter;
+    for (uint256 i = 1; i <= numOrders; i++) {
+      // console.log(orders[i].maker);
+      // console.log(orders[i].endTime);
+      if (orders[i].endTime == 0) {
+        openOrders[counter] = orders[i];
+        counter++;
+      }
+    }
+    return openOrders;
+  }
 
   /**
     Always returns `IERC721Receiver.onERC721Received.selector`.
