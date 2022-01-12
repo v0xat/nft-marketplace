@@ -33,7 +33,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
 
   event PlacedOrder(uint256 indexed orderId, uint256 indexed itemId, address indexed owner, uint256 basePrice);
   event CancelledOrder(uint256 indexed orderId, bool isSold);
-  event PlacedBid(uint256 indexed orderId, address indexed maker, uint256 bidAmount);
+  event NewHighestBid(uint256 indexed orderId, address indexed maker, uint256 bidAmount);
   event BiddingTimeChanged(address from, uint256 newBiddingTime);
   event AuctionFinished(uint256 indexed orderId, uint256 numBids);
   event Purchase(uint256 indexed orderId, uint256 indexed itemId, address maker, address taker, uint256 price);
@@ -61,7 +61,13 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     OrderType orderType;
   }
 
+  struct Bid {
+    uint256 amount;
+    address bidder;
+  }
+
   mapping(uint256 => Order) public orders; // orderId => Order
+  mapping(uint256 => Bid[]) public bids; // orderId => Bid
 
   constructor(
     uint256 _biddingTime,
@@ -191,7 +197,12 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     order.highestBid = bidAmount;
     order.highestBidder = msg.sender;
 
-    emit PlacedBid(orderId, msg.sender, bidAmount);
+    bids[orderId].push(Bid({
+      amount: bidAmount,
+      bidder: msg.sender
+    }));
+
+    emit NewHighestBid(orderId, msg.sender, bidAmount);
   }
 
   function cancelOrder(uint256 orderId) external whenNotPaused {
@@ -282,6 +293,10 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
       }
     }
     return openOrders;
+  }
+
+  function getBidsByOrder(uint256 orderId) external view returns (Bid[] memory) {
+    return bids[orderId];
   }
 
   /**

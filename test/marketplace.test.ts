@@ -317,7 +317,7 @@ describe("Marketplace", function () {
 
       it("Bidding emits event", async () => {
         await expect(mp.makeBid(firstOrder, twentyTokens))
-          .to.emit(mp, "PlacedBid")
+          .to.emit(mp, "NewHighestBid")
           .withArgs(firstOrder, owner.address, twentyTokens)
           .and.to.emit(acdmToken, "Transfer")
           .withArgs(owner.address, mp.address, twentyTokens);
@@ -346,7 +346,7 @@ describe("Marketplace", function () {
 
     describe("Finish auction", function () {
       beforeEach(async () => {
-        // Listing items
+        // Listing item
         await mp.listAuction(firstItem, bidStep, bidStep);
       });
 
@@ -450,7 +450,25 @@ describe("Marketplace", function () {
     });
 
     it("Should be able to get bids by order id", async () => {
-      // getting bids from PlacedBid event
+      // Starting auction
+      await mp.cancelOrder(firstOrder);
+      await nft.approve(mp.address, firstItem);
+      await mp.listAuction(firstItem, bidStep, bidStep);
+      // Making bids
+      await mp.connect(alice).makeBid(secondOrder, bidStep.mul(3));
+      await mp.connect(addrs[0]).makeBid(secondOrder, bidStep.mul(5));
+      await mp.connect(bob).makeBid(secondOrder, tenTokens);
+
+      let bids = await mp.getBidsByOrder(firstOrder);
+      expect(bids.length).to.be.equal(0);
+      bids = await mp.getBidsByOrder(secondOrder);
+      expect(bids.length).to.be.equal(3);
+      expect(bids[0].amount).to.be.equal(bidStep.mul(3));
+      expect(bids[0].bidder).to.be.equal(alice.address);
+      expect(bids[1].amount).to.be.equal(bidStep.mul(5));
+      expect(bids[1].bidder).to.be.equal(addrs[0].address);
+      expect(bids[2].amount).to.be.equal(tenTokens);
+      expect(bids[2].bidder).to.be.equal(bob.address);
     });
 
     it("Should be able to check if item is listed", async () => {
