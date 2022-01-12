@@ -205,7 +205,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   }
 
   function finishAuction(uint256 orderId) external whenNotPaused {
-    Order memory order = orders[orderId];
+    Order storage order = orders[orderId];
     require(order.endTime == 0, "No such order");
     require(msg.sender == order.maker, "Not the order creator");
     require(order.orderType == OrderType.Auction, "Not an auction order");
@@ -216,7 +216,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
       _cancelOrder(orderId, true);
     } else {
       // Return ACDM to latest bidder if exists
-      if (order.numBids == 1) IERC20(acdmToken).safeTransfer(order.highestBidder, order.highestBid);
+      if (order.numBids > 0) IERC20(acdmToken).safeTransfer(order.highestBidder, order.highestBid);
       _cancelOrder(orderId, false);
     }
 
