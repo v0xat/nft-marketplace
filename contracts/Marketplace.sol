@@ -135,7 +135,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     newOrder.maker = msg.sender;
     newOrder.orderType = OrderType.FixedPrice;
 
-    acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
+    _transferItem(msg.sender, address(this), itemId);
 
     emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
   }
@@ -158,7 +158,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     newOrder.maker = msg.sender;
     newOrder.orderType = OrderType.Auction;
 
-    acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
+    _transferItem(msg.sender, address(this), itemId);
 
     emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
   }
@@ -186,11 +186,11 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     require(msg.sender != order.maker, "Can't bid on your own order");
 
     // Transfer ACDM tokens
-    IERC20(acdmToken).safeTransferFrom(msg.sender, address(this), bidAmount);
+    _transferTokens(msg.sender, address(this), bidAmount);
 
     // Return ACDM to prev bidder
     if (order.numBids > 0) {
-      IERC20(acdmToken).safeTransfer(order.highestBidder, order.highestBid);
+      _transferTokens(address(0), order.highestBidder, order.highestBid);
     }
 
     order.numBids++;
@@ -225,7 +225,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
       _cancelOrder(orderId, true);
     } else {
       // Return ACDM to latest bidder if exists
-      if (order.numBids > 0) IERC20(acdmToken).safeTransfer(order.highestBidder, order.highestBid);
+      if (order.numBids > 0) _transferTokens(address(0), order.highestBidder, order.highestBid);
       _cancelOrder(orderId, false);
     }
 
@@ -240,12 +240,20 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     address itemOwner,
     address itemRecipient
   ) private {
-    if (payer != address(0)) IERC20(acdmToken).safeTransferFrom(payer, itemOwner, price);
-    else IERC20(acdmToken).safeTransfer(itemOwner, price);
+    _transferTokens(payer, itemOwner, price);
 
-    acdmItems.safeTransferFrom(address(this), itemRecipient, itemId);
+    _transferItem(address(this), itemRecipient, itemId);
 
     emit Purchase(orderId, itemId, itemOwner, itemRecipient, price);
+  }
+
+  function _transferItem(address from, address to, uint256 itemId) private {
+    acdmItems.safeTransferFrom(from, to, itemId);
+  }
+
+  function _transferTokens(address from, address to, uint256 amount) private {
+    if (from != address(0)) IERC20(acdmToken).safeTransferFrom(from, to, amount);
+    else IERC20(acdmToken).safeTransfer(to, amount);
   }
 
   function _cancelOrder(uint256 orderId, bool isSold) private {
@@ -253,9 +261,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     order.endTime = block.timestamp;
 
     // Return item if it's not sold
-    if (!isSold) {
-      acdmItems.safeTransferFrom(address(this), order.maker, order.itemId);
-    }
+    if (!isSold) _transferItem(address(this), order.maker, order.itemId);
 
     emit CancelledOrder(orderId, isSold);
   }
