@@ -164,7 +164,7 @@ describe("Marketplace", function () {
     describe("Listing item", function () {
       it("Can't place order with zero price", async () => {
         await expect(mp.listFixedPrice(firstItem, 0)).to.be.revertedWith(
-          "Base price can't be zero"
+          "Price & bid step can't be zero"
         );
       });
 
@@ -244,13 +244,13 @@ describe("Marketplace", function () {
     describe("Placing order", function () {
       it("Can't place order with zero price", async () => {
         await expect(mp.listAuction(firstItem, 0, bidStep)).to.be.revertedWith(
-          "Base price can't be zero"
+          "Price & bid step can't be zero"
         );
       });
 
       it("Can't place order with zero bidStep", async () => {
         await expect(mp.listAuction(firstItem, tenTokens, 0)).to.be.revertedWith(
-          "Bid step can't be zero"
+          "Price & bid step can't be zero"
         );
       });
 

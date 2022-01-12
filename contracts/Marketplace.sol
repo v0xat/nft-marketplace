@@ -36,6 +36,11 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   event AuctionFinished(uint256 indexed orderId, uint256 numBids);
   event Purchase(uint256 indexed orderId, uint256 indexed itemId, address maker, address taker, uint256 price);
 
+  modifier notZero(uint256 num) {
+    require(num > 0, "Price & bid step can't be zero");
+    _;
+  }
+
   enum OrderType {
     FixedPrice,
     Auction
@@ -110,8 +115,9 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   function listFixedPrice(uint256 itemId, uint256 basePrice)
     external
     whenNotPaused
+    notZero(basePrice)
   {
-    require(basePrice > 0, "Base price can't be zero");
+    // require(basePrice > 0, "Base price can't be zero");
 
     _numOrders.increment();
 
@@ -136,9 +142,11 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   function listAuction(uint256 itemId, uint256 basePrice, uint256 bidStep)
     external
     whenNotPaused
+    notZero(basePrice)
+    notZero(bidStep)
   {
-    require(basePrice > 0, "Base price can't be zero");
-    require(bidStep > 0, "Bid step can't be zero");
+    // require(basePrice > 0, "Base price can't be zero");
+    // require(bidStep > 0, "Bid step can't be zero");
 
     _numOrders.increment();
 
@@ -165,9 +173,9 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     whenNotPaused
   {
     Order memory order = orders[orderId];
+    require(order.basePrice > 0 && order.endTime == 0, "Order cancelled or not exist");
     require(order.orderType == OrderType.FixedPrice, "Can't buy auction order");
     require(msg.sender != order.maker, "Can't buy from yourself");
-    require(order.basePrice > 0 && order.endTime == 0, "Order cancelled or not exist");
 
     // Transfer NFT to `msg.sender` and ACDM to order owner
     _exchange(orderId, order.itemId, order.basePrice, msg.sender, order.maker, msg.sender);
