@@ -12,64 +12,107 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "./assets/erc20/AcademyToken.sol";
 import "./assets/erc721/EssentialImages.sol";
 
-/** @title Simple NFT marketplace. */
+/** @title NFT marketplace creation contract.
+ * @author https://github.com/v0xat
+ */
 contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   using SafeERC20 for IERC20;
   using Counters for Counters.Counter;
 
-  // Create a new role identifier for the NFT creator role
+  /** Role identifier for the NFT creator role. */
   bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
 
-  // Auction duration timestamp
+  /** Auction duration timestamp. */
   uint256 public biddingTime;
 
-  // Counts number of orders
+  /** Counts number of orders. */
   Counters.Counter private _numOrders;
 
-  // Address of the token contract used to pay for items
+  /** Address of the token contract used to pay for items. */
   AcademyToken public acdmToken;
 
-  // Address of the NFT contract
+  /** Address of the NFT contract. */
   EssentialImages public acdmItems;
 
+  /** Emitted when a new order is placed. */
   event PlacedOrder(uint256 indexed orderId, uint256 indexed itemId, address indexed owner, uint256 basePrice);
+
+  /** Emitted when an order is cancelled. */
   event CancelledOrder(uint256 indexed orderId, bool isSold);
+
+  /** Emitted at the new highest bid. */
   event NewHighestBid(uint256 indexed orderId, address indexed maker, uint256 bidAmount);
+
+  /** Emitted when the bidding time changes. */
   event BiddingTimeChanged(address from, uint256 newBiddingTime);
+
+  /** Emitted when the auction is finished. */
   event AuctionFinished(uint256 indexed orderId, uint256 numBids);
+
+  /** Emitted when a new purchase occures. */
   event Purchase(uint256 indexed orderId, uint256 indexed itemId, address maker, address taker, uint256 price);
 
+  /**
+   * @dev Checks if the given number is greater than zero.
+   */
   modifier notZero(uint256 num) {
     require(num > 0, "Price & bid step can't be zero");
     _;
   }
 
+  /** Order type: fixed price or auction. */
   enum OrderType {
     FixedPrice,
     Auction
   }
 
+  /** Order struct. */
   struct Order {
+    /** EssentialItems item id. */
     uint256 itemId;
+    /** Base price in ACDM tokens. */
     uint256 basePrice;
+    /** Expiration timestamp - 0 for fixed price. */
     uint256 expiresAt;
+    /** Ending time - set at cancellation. */
     uint256 endTime;
+    /** Number of bids. */
     uint256 numBids;
+    /** Highest bid in ACDM tokens. */
     uint256 highestBid;
+    /** Bid step in ACDM tokens. */
     uint256 bidStep;
+    /** Maker address. */
     address maker;
+    /** Address of the last bidder. */
     address highestBidder;
+    /** Order type. */
     OrderType orderType;
   }
 
+  /** Bid struct. */
   struct Bid {
+    /** Bid amount in ACDM tokens. */
     uint256 amount;
+    /** Bidder address. */
     address bidder;
   }
 
+  /** Orders by id. */
   mapping(uint256 => Order) public orders; // orderId => Order
+
+  /** Bids by order and bid id. */
   mapping(uint256 => mapping(uint256 => Bid)) public bids; // orderId => bidId => Bid
 
+  /** @notice Creates marketplace contract.
+   * @dev Grants `DEFAULT_ADMIN_ROLE` to `msg.sender`.
+   * Grants `CREATOR_ROLE` to `_itemCreator`.
+   * @param _biddingTime Initial bidding time.
+   * @param _token The address of the token used for payments.
+   * @param _itemCreator The address of the item creator.
+   * @param _nftName Name of the EssentialImages contract.
+   * @param _nftSymbol Symbol of the EssentialImages contract.
+   */
   constructor(
     uint256 _biddingTime,
     address _token,
@@ -82,10 +125,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     acdmToken = AcademyToken(_token);
     acdmItems = new EssentialImages(_nftName, _nftSymbol);
 
-    // Grant the contract deployer the default admin role: 
-    // it will be able to grant and revoke any roles
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    // Grant the NFT creator role to a specified account
     _setupRole(CREATOR_ROLE, _itemCreator);
   }
 
@@ -104,6 +144,13 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     _unpause();
   }
 
+  /** @notice Mints new ERC721 item.
+   * @dev Calls `EssentialItems.safeMint` function.
+   *  Available only to users with `CREATOR_ROLE`.
+   *
+   * @param to The address to mint to.
+   * @param tokenURI URI of the new item.
+   */
   function createItem(address to, string memory tokenURI)
     external
     onlyRole(CREATOR_ROLE)
@@ -113,6 +160,13 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     itemId = acdmItems.safeMint(to, tokenURI);
   }
 
+  /** @notice Mints new ERC721 item.
+   * @dev Available only to admin.
+   *
+   * Emits a {BiddingTimeChanged} event.
+   *
+   * @param _biddingTime New bidding time (timestamp).
+   */
   function changeBiddingTime(uint256 _biddingTime)
     external
     onlyRole(DEFAULT_ADMIN_ROLE)
@@ -326,9 +380,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     return orderBids;
   }
 
-  /**
-    Always returns `IERC721Receiver.onERC721Received.selector`.
-  */
+  /** Always returns `IERC721Receiver.onERC721Received.selector`. */
   function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
     return this.onERC721Received.selector;
   }
