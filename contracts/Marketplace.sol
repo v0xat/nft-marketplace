@@ -175,9 +175,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     _cancelOrder(orderId, true);
   }
 
-  function makeBid(uint256 orderId, uint256 bidAmount)
-    external
-  {
+  function makeBid(uint256 orderId, uint256 bidAmount) external whenNotPaused {
     Order storage order = orders[orderId];
     require(bidAmount > (order.highestBid + order.bidStep), "Bid must be more than highest + bid step");
     require(order.expiresAt > block.timestamp, "Bidding time is over");
@@ -198,10 +196,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit PlacedBid(orderId, msg.sender, bidAmount);
   }
 
-  function cancelOrder(uint256 orderId)
-    external
-    whenNotPaused
-  {
+  function cancelOrder(uint256 orderId) external whenNotPaused {
     Order memory order = orders[orderId];
     require(msg.sender == order.maker, "Not the order creator");
     require(order.orderType == OrderType.FixedPrice, "Can't cancel an auction order");
@@ -209,7 +204,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     _cancelOrder(orderId, false);
   }
 
-  function finishAuction(uint256 orderId) external {
+  function finishAuction(uint256 orderId) external whenNotPaused {
     Order memory order = orders[orderId];
     require(order.endTime == 0, "No such order");
     require(msg.sender == order.maker, "Not the order creator");
