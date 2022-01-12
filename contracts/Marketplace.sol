@@ -121,6 +121,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
 
     _numOrders.increment();
     uint256 numOrders = _numOrders.current();
+
     Order storage newOrder = orders[numOrders];
     newOrder.itemId = itemId;
     newOrder.basePrice = basePrice;
@@ -142,23 +143,20 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     // require(bidStep > 0, "Bid step can't be zero");
 
     _numOrders.increment();
+    uint256 numOrders = _numOrders.current();
 
-    orders[_numOrders.current()] = Order({
-      itemId: itemId,
-      basePrice: basePrice,
-      expiresAt: block.timestamp + biddingTime,
-      endTime: 0,
-      numBids: 0,
-      highestBid: basePrice,
-      bidStep: bidStep,
-      maker: msg.sender,
-      highestBidder: msg.sender,
-      orderType: OrderType.Auction
-    });
+    Order storage newOrder = orders[numOrders];
+    newOrder.itemId = itemId;
+    newOrder.basePrice = basePrice;
+    newOrder.expiresAt = block.timestamp + biddingTime;
+    newOrder.highestBid = basePrice;
+    newOrder.bidStep = bidStep;
+    newOrder.maker = msg.sender;
+    newOrder.orderType = OrderType.Auction;
 
     acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
 
-    emit PlacedOrder(_numOrders.current(), itemId, msg.sender, basePrice);
+    emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
   }
 
   function buyOrder(uint256 orderId)
