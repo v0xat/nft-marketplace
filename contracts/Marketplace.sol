@@ -33,6 +33,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   event PlacedOrder(uint256 indexed orderId, uint256 indexed itemId, address indexed owner, uint256 basePrice);
   event CancelledOrder(uint256 indexed orderId, bool isSold);
   event PlacedBid(uint256 indexed orderId, address indexed maker, uint256 bidAmount);
+  event BiddingTimeChanged(address from, uint256 newBiddingTime);
   event AuctionFinished(uint256 indexed orderId, uint256 numBids);
   event Purchase(uint256 indexed orderId, uint256 indexed itemId, address maker, address taker, uint256 price);
 
@@ -110,6 +111,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     whenNotPaused
   {
     biddingTime = _biddingTime;
+    emit BiddingTimeChanged(msg.sender, _biddingTime);
   }
 
   function listFixedPrice(uint256 itemId, uint256 basePrice)
@@ -117,8 +119,6 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     whenNotPaused
     notZero(basePrice)
   {
-    // require(basePrice > 0, "Base price can't be zero");
-
     _numOrders.increment();
     uint256 numOrders = _numOrders.current();
 
@@ -139,9 +139,6 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     notZero(basePrice)
     notZero(bidStep)
   {
-    // require(basePrice > 0, "Base price can't be zero");
-    // require(bidStep > 0, "Bid step can't be zero");
-
     _numOrders.increment();
     uint256 numOrders = _numOrders.current();
 
