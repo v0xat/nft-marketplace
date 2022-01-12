@@ -120,23 +120,16 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     // require(basePrice > 0, "Base price can't be zero");
 
     _numOrders.increment();
-
-    orders[_numOrders.current()] = Order({
-      itemId: itemId,
-      basePrice: basePrice,
-      expiresAt: 0,
-      endTime: 0,
-      numBids: 0,
-      highestBid: 0,
-      bidStep: 0,
-      maker: msg.sender,
-      highestBidder: msg.sender,
-      orderType: OrderType.FixedPrice
-    });
+    uint256 numOrders = _numOrders.current();
+    Order storage newOrder = orders[numOrders];
+    newOrder.itemId = itemId;
+    newOrder.basePrice = basePrice;
+    newOrder.maker = msg.sender;
+    newOrder.orderType = OrderType.FixedPrice;
 
     acdmItems.safeTransferFrom(msg.sender, address(this), itemId);
 
-    emit PlacedOrder(_numOrders.current(), itemId, msg.sender, basePrice);
+    emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
   }
 
   function listAuction(uint256 itemId, uint256 basePrice, uint256 bidStep)
