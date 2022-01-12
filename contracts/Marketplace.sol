@@ -23,7 +23,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   // Auction duration timestamp
   uint256 public biddingTime;
 
-  Counters.Counter private _numOrders; 
+  // Counts number of orders
+  Counters.Counter private _numOrders;
 
   // Address of the token contract used to pay for items
   AcademyToken public acdmToken;
@@ -67,7 +68,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   }
 
   mapping(uint256 => Order) public orders; // orderId => Order
-  mapping(uint256 => Bid[]) public bids; // orderId => Bid
+  mapping(uint256 => mapping(uint256 => Bid)) public bids; // orderId => bidId => Bid
 
   constructor(
     uint256 _biddingTime,
@@ -197,10 +198,10 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     order.highestBid = bidAmount;
     order.highestBidder = msg.sender;
 
-    bids[orderId].push(Bid({
+    bids[orderId][order.numBids] = Bid({
       amount: bidAmount,
       bidder: msg.sender
-    }));
+    });
 
     emit NewHighestBid(orderId, msg.sender, bidAmount);
   }
@@ -301,8 +302,28 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     return openOrders;
   }
 
-  function getBidsByOrder(uint256 orderId) external view returns (Bid[] memory) {
-    return bids[orderId];
+  function getBidsHistory() external view returns (Bid[][] memory) {
+    uint256 numOrders = _numOrders.current();
+    Bid[][] memory bidsHistory = new Bid[][](numOrders);
+
+    for (uint256 i = 1; i <= numOrders; i++) {
+      bidsHistory[i - 1] = getBidsByOrder(i);
+    }
+
+    return bidsHistory;
+  }
+
+  function getBidsByOrder(uint256 orderId) public view returns (Bid[] memory) {
+    uint256 numBids = orders[orderId].numBids;
+    Bid[] memory orderBids = new Bid[](numBids);
+
+    uint256 counter;
+    for (uint256 i = 1; i <= numBids; i++) {
+      orderBids[i - 1] = bids[orderId][i];
+      counter++;
+    }
+
+    return orderBids;
   }
 
   /**

@@ -449,6 +449,26 @@ describe("Marketplace", function () {
       expect(orders[0].basePrice).to.be.equal(tenTokens);
     });
 
+    it("Should be able to get bids history", async () => {
+      await mp.cancelOrder(firstOrder);
+      await nft.approve(mp.address, firstItem);
+      await mp.listAuction(firstItem, bidStep, bidStep);
+
+      // Making bids
+      await mp.connect(alice).makeBid(secondOrder, bidStep.mul(3));
+      await mp.connect(addrs[0]).makeBid(secondOrder, bidStep.mul(5));
+      await mp.connect(bob).makeBid(secondOrder, tenTokens);
+
+      await mp.connect(alice).listAuction(secondItem, bidStep, bidStep);
+      await mp.connect(bob).makeBid(3, bidStep.mul(3));
+
+      const history = await mp.getBidsHistory();
+      expect(history.length).to.be.equal(3);
+      expect(history[0].length).to.be.equal(0);
+      expect(history[1].length).to.be.equal(3);
+      expect(history[2].length).to.be.equal(1);
+    });
+
     it("Should be able to get bids by order id", async () => {
       // Starting auction
       await mp.cancelOrder(firstOrder);
@@ -459,8 +479,11 @@ describe("Marketplace", function () {
       await mp.connect(addrs[0]).makeBid(secondOrder, bidStep.mul(5));
       await mp.connect(bob).makeBid(secondOrder, tenTokens);
 
+      // Test first order (in beforeEach hook)
       let bids = await mp.getBidsByOrder(firstOrder);
       expect(bids.length).to.be.equal(0);
+
+      // Test second order
       bids = await mp.getBidsByOrder(secondOrder);
       expect(bids.length).to.be.equal(3);
       expect(bids[0].amount).to.be.equal(bidStep.mul(3));
@@ -469,6 +492,14 @@ describe("Marketplace", function () {
       expect(bids[1].bidder).to.be.equal(addrs[0].address);
       expect(bids[2].amount).to.be.equal(tenTokens);
       expect(bids[2].bidder).to.be.equal(bob.address);
+
+      // Test third order
+      await mp.connect(alice).listAuction(secondItem, bidStep, bidStep);
+      await mp.connect(bob).makeBid(3, bidStep.mul(3));
+      bids = await mp.getBidsByOrder(3);
+      expect(bids.length).to.be.equal(1);
+      expect(bids[0].amount).to.be.equal(bidStep.mul(3));
+      expect(bids[0].bidder).to.be.equal(bob.address);
     });
 
     it("Should be able to check if item is listed", async () => {
