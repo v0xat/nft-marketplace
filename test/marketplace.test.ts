@@ -324,20 +324,19 @@ describe("Marketplace", function () {
 
         const order = await mp.orders(firstOrder);
         expect(order.numBids).to.be.equal(1);
-        expect(order.highestBid).to.be.equal(twentyTokens);
-        expect(order.highestBidder).to.be.equal(owner.address);
       });
 
       it("Tokens are returned to previous bidder after a new highest bid", async () => {
         const ownerBalance = await acdmToken.balanceOf(owner.address);
         await mp.makeBid(firstOrder, twentyTokens);
-        let order = await mp.orders(firstOrder);
-        expect(order.highestBidder).to.be.equal(owner.address);
+        let bids = await mp.getBidsByOrder(firstOrder);
+        // [bids.length - 1] gives us the last bid (i.e. highest bid)
+        expect(bids[bids.length - 1].bidder).to.be.equal(owner.address);
 
         // Check highest bidder changed
         await mp.connect(bob).makeBid(firstOrder, twentyTokens.mul(2));
-        order = await mp.orders(firstOrder);
-        expect(order.highestBidder).to.be.equal(bob.address);
+        bids = await mp.getBidsByOrder(firstOrder);
+        expect(bids[bids.length - 1].bidder).to.be.equal(bob.address);
 
         // Check owner got his tokens back
         expect(await acdmToken.balanceOf(owner.address)).to.be.equal(ownerBalance);

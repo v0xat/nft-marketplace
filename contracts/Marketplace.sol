@@ -76,16 +76,12 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     uint256 expiresAt;
     /** Ending time - set at cancellation. */
     uint256 endTime;
-    /** Number of bids. */
+    /** Number of bids, always points to last (i.e. highest) bid. */
     uint256 numBids;
-    /** Highest bid in ACDM tokens. */
-    uint256 highestBid;
     /** Bid step in ACDM tokens. */
     uint256 bidStep;
     /** Maker address. */
     address maker;
-    /** Address of the last bidder. */
-    address highestBidder;
     /** Order type. */
     OrderType orderType;
   }
@@ -208,7 +204,6 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     newOrder.itemId = itemId;
     newOrder.basePrice = basePrice;
     newOrder.expiresAt = block.timestamp + biddingTime;
-    newOrder.highestBid = basePrice;
     newOrder.bidStep = bidStep;
     newOrder.maker = msg.sender;
     newOrder.orderType = OrderType.Auction;
@@ -227,31 +222,31 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     require(order.orderType == OrderType.FixedPrice, "Can't buy auction order");
     require(msg.sender != order.maker, "Can't buy from yourself");
 
-    // Transfer NFT to `msg.sender` and ACDM to order owner
+    // Transfer NFT to `msg.sender` and ACDM to order maker
     _exchange(orderId, order.itemId, order.basePrice, msg.sender, order.maker, msg.sender);
 
-    // Closing order
     _cancelOrder(orderId, true);
   }
 
   function makeBid(uint256 orderId, uint256 bidAmount) external whenNotPaused {
     Order storage order = orders[orderId];
-    require(bidAmount > (order.highestBid + order.bidStep), "Bid must be more than highest + bid step");
     require(order.expiresAt > block.timestamp, "Bidding time is over");
     require(msg.sender != order.maker, "Can't bid on your own order");
+
+    uint256 numBids = order.numBids;
+    Bid memory lastBid = bids[orderId][numBids];
+    require(
+      bidAmount > (order.basePrice + order.bidStep) && bidAmount > (lastBid.amount + order.bidStep),
+      "Bid must be more than highest + bid step"
+    );
 
     // Transfer ACDM tokens
     _transferTokens(msg.sender, address(this), bidAmount);
 
-    // Return ACDM to prev bidder
-    if (order.numBids > 0) {
-      _transferTokens(address(0), order.highestBidder, order.highestBid);
-    }
+    // Return ACDM to the last bidder
+    if (numBids > 0) _transferTokens(address(0), lastBid.bidder, lastBid.amount);
 
     order.numBids++;
-    order.highestBid = bidAmount;
-    order.highestBidder = msg.sender;
-
     bids[orderId][order.numBids] = Bid({
       amount: bidAmount,
       bidder: msg.sender
@@ -275,16 +270,18 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     require(order.orderType == OrderType.Auction, "Not an auction order");
     require(order.expiresAt <= block.timestamp, "Can't finish before bidding time");
 
-    if (order.numBids > 2) {
-      _exchange(orderId, order.itemId, order.highestBid, address(0), order.maker, order.highestBidder);
+    uint256 numBids = order.numBids;
+    Bid storage lastBid = bids[orderId][numBids];
+    if (numBids > 2) {
+      _exchange(orderId, order.itemId, lastBid.amount, address(0), order.maker, lastBid.bidder);
       _cancelOrder(orderId, true);
     } else {
-      // Return ACDM to latest bidder if exists
-      if (order.numBids > 0) _transferTokens(address(0), order.highestBidder, order.highestBid);
+      // Return ACDM to the last bidder
+      if (numBids > 0) _transferTokens(address(0), lastBid.bidder, lastBid.amount);
       _cancelOrder(orderId, false);
     }
 
-    emit AuctionFinished(orderId, order.numBids);
+    emit AuctionFinished(orderId, numBids);
   }
 
   function _exchange(
