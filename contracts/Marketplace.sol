@@ -25,14 +25,20 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   /** Auction duration timestamp. */
   uint256 public biddingTime;
 
+  /** Minimum auction duration timestamp. */
+  uint256 public minBiddingTime;
+
+  /** Maximum auction duration timestamp. */
+  uint256 public maxBiddingTime;
+
   /** Counts number of orders. */
   Counters.Counter private _numOrders;
 
   /** Address of the token contract used to pay for items. */
-  AcademyToken public acdmToken;
+  address public acdmToken;
 
   /** Address of the NFT contract. */
-  EssentialImages public acdmItems;
+  address public eiCollection;
 
   /** Emitted when a new order is placed. */
   event PlacedOrder(uint256 indexed orderId, uint256 indexed itemId, address indexed owner, uint256 basePrice);
@@ -111,15 +117,19 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
    */
   constructor(
     uint256 _biddingTime,
+    uint256 _minBiddingTime,
+    uint256 _maxBiddingTime,
     address _token,
     address _itemCreator,
     string memory _nftName,
     string memory _nftSymbol
   ) {
     biddingTime = _biddingTime;
+    minBiddingTime = _minBiddingTime;
+    maxBiddingTime = _maxBiddingTime;
 
-    acdmToken = AcademyToken(_token);
-    acdmItems = new EssentialImages(_nftName, _nftSymbol);
+    acdmToken = _token;
+    eiCollection = address(new EssentialImages(_nftName, _nftSymbol));
 
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _setupRole(CREATOR_ROLE, _itemCreator);
@@ -153,7 +163,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     whenNotPaused
     returns (uint256 itemId)
   {
-    itemId = acdmItems.safeMint(to, tokenURI);
+    itemId = EssentialImages(eiCollection).safeMint(to, tokenURI);
   }
 
   /** @notice Mints new ERC721 item.
@@ -168,6 +178,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     onlyRole(DEFAULT_ADMIN_ROLE)
     whenNotPaused
   {
+    require(_biddingTime > minBiddingTime && _biddingTime < maxBiddingTime, "Time must be within the min and max");
     biddingTime = _biddingTime;
     emit BiddingTimeChanged(msg.sender, _biddingTime);
   }
@@ -263,7 +274,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     require(msg.sender != order.maker, "Can't bid on your own order");
 
     uint256 numBids = order.numBids;
-    Bid memory lastBid = bids[orderId][numBids];
+    Bid storage lastBid = bids[orderId][numBids];
     require(
       bidAmount > (order.basePrice + order.bidStep) && bidAmount > (lastBid.amount + order.bidStep),
       "Bid must be more than highest + bid step"
@@ -360,7 +371,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
    * @param itemId Item ID.
    */
   function _transferItem(address from, address to, uint256 itemId) private {
-    acdmItems.safeTransferFrom(from, to, itemId);
+    EssentialImages(eiCollection).safeTransferFrom(from, to, itemId);
   }
 
   /** @notice Transfers ACDM tokens between users.
@@ -369,8 +380,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
    * @param amount Transfer amount in ACDM tokens.
    */
   function _transferTokens(address from, address to, uint256 amount) private {
-    if (from != address(0)) IERC20(acdmToken).safeTransferFrom(from, to, amount);
-    else IERC20(acdmToken).safeTransfer(to, amount);
+    from != address(0) ? IERC20(acdmToken).safeTransferFrom(from, to, amount)
+    : IERC20(acdmToken).safeTransfer(to, amount);
   }
 
   /** @notice Cancelling order by id.
@@ -422,9 +433,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
 
     uint256 counter;
     for (uint256 i = 1; i <= numOrders; i++) {
-      // console.log(orders[i].maker);
-      // console.log(orders[i].endTime);
       if (orders[i].endTime == 0) {
+        // console.log("check");
         openOrders[counter] = orders[i];
         counter++;
       }
@@ -454,10 +464,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     uint256 numBids = orders[orderId].numBids;
     Bid[] memory orderBids = new Bid[](numBids);
 
-    uint256 counter;
     for (uint256 i = 1; i <= numBids; i++) {
       orderBids[i - 1] = bids[orderId][i];
-      counter++;
     }
 
     return orderBids;

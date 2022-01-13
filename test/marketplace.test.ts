@@ -11,13 +11,16 @@ const tokenSymbol = "ACDM";
 const decimals = 18;
 const tenTokens = ethers.utils.parseUnits("10.0", decimals);
 const twentyTokens = ethers.utils.parseUnits("20.0", decimals);
+const thirtyTokens = ethers.utils.parseUnits("30.0", decimals);
 
 // NFT metadata
-const nftName = "EssentialImages";
-const nftSymbol = "EI";
+const eiCollectionName = "EssentialImages";
+const eiCollectionSymbol = "EI";
 
 // Test data
 const biddingTime = 259200; // 3 days in seconds
+const minBiddingTime = 86400; // 1 day in seconds
+const maxBiddingTime = 1209600; // 14 days in seconds
 const bidStep = ethers.utils.parseUnits("1.0", decimals);
 const zeroAddr = ethers.constants.AddressZero;
 const birdURI: string = testData.bird.metadata;
@@ -37,7 +40,7 @@ const creatorRole = ethers.utils.solidityKeccak256(["string"], ["CREATOR_ROLE"])
 describe("Marketplace", function () {
   let mp: Contract,
     acdmToken: Contract,
-    nft: Contract,
+    eiCollection: Contract,
     Marketplace: ContractFactory,
     ACDMtoken: ContractFactory,
     owner: SignerWithAddress,
@@ -59,16 +62,18 @@ describe("Marketplace", function () {
     // Deploy Marketplace & NFT contract, set CREATOR_ROLE to Alice
     mp = await Marketplace.deploy(
       biddingTime,
+      minBiddingTime,
+      maxBiddingTime,
       acdmToken.address,
       alice.address,
-      nftName,
-      nftSymbol
+      eiCollectionName,
+      eiCollectionSymbol
     );
     await mp.deployed();
 
     // Getting NFT contract
-    const nftAddr: string = await mp.acdmItems();
-    nft = await ethers.getContractAt(nftName, nftAddr);
+    const eiAddr: string = await mp.eiCollection();
+    eiCollection = await ethers.getContractAt(eiCollectionName, eiAddr);
 
     // Grant Minter & Burner role to admin
     await acdmToken.grantRole(minterRole, owner.address);
@@ -76,7 +81,7 @@ describe("Marketplace", function () {
 
     // Mint some tokens
     await acdmToken.mint(addrs[0].address, twentyTokens);
-    await acdmToken.mint(owner.address, twentyTokens);
+    await acdmToken.mint(owner.address, twentyTokens.mul(2));
     await acdmToken.mint(alice.address, twentyTokens);
     await acdmToken.mint(bob.address, twentyTokens.mul(2));
 
@@ -91,13 +96,13 @@ describe("Marketplace", function () {
     await mp.connect(alice).createItem(alice.address, coronaURI);
 
     // Approving items to Marketplace
-    await nft.approve(mp.address, firstItem);
-    await nft.connect(alice).approve(mp.address, secondItem);
+    await eiCollection.approve(mp.address, firstItem);
+    await eiCollection.connect(alice).approve(mp.address, secondItem);
   });
 
   describe("Deployment", function () {
     it("Should set Marketplace as NFT contract owner", async () => {
-      expect(await nft.owner()).to.equal(mp.address);
+      expect(await eiCollection.owner()).to.equal(mp.address);
     });
 
     it("Should set right acdmToken owner", async () => {
@@ -109,11 +114,13 @@ describe("Marketplace", function () {
     });
 
     it("Should set right NFT contract address", async () => {
-      expect(await mp.acdmItems()).to.be.equal(nft.address);
+      expect(await mp.eiCollection()).to.be.equal(eiCollection.address);
     });
 
     it("Should set right bidding time", async () => {
       expect(await mp.biddingTime()).to.be.equal(biddingTime);
+      expect(await mp.minBiddingTime()).to.be.equal(minBiddingTime);
+      expect(await mp.maxBiddingTime()).to.be.equal(maxBiddingTime);
     });
 
     it("Roles should be set correctly", async () => {
@@ -147,6 +154,17 @@ describe("Marketplace", function () {
       );
     });
 
+    it("New bidding time must fit minimun and maximum", async () => {
+      // Trying to set less than minBiddingTime
+      await expect(mp.changeBiddingTime(86300)).to.be.revertedWith(
+        "Time must be within the min and max"
+      );
+      // Trying to set greater than maxBiddingTime
+      await expect(mp.changeBiddingTime(1209700)).to.be.revertedWith(
+        "Time must be within the min and max"
+      );
+    });
+
     it("Changing the bidding time triggers event", async () => {
       await expect(mp.changeBiddingTime(biddingTime))
         .to.emit(mp, "BiddingTimeChanged")
@@ -163,9 +181,9 @@ describe("Marketplace", function () {
 
     it("Creator should be able to create item", async () => {
       await expect(mp.connect(alice).createItem(owner.address, birdURI))
-        .and.to.emit(nft, "Transfer")
+        .and.to.emit(eiCollection, "Transfer")
         .withArgs(zeroAddr, owner.address, 3);
-      expect(await nft.tokenURI(3)).to.equal(birdURI);
+      expect(await eiCollection.tokenURI(3)).to.equal(birdURI);
     });
   });
 
@@ -186,7 +204,7 @@ describe("Marketplace", function () {
         await expect(mp.connect(alice).listFixedPrice(secondItem, tenTokens))
           .to.emit(mp, "PlacedOrder")
           .withArgs(secondOrder, secondItem, alice.address, tenTokens)
-          .and.to.emit(nft, "Transfer")
+          .and.to.emit(eiCollection, "Transfer")
           .withArgs(alice.address, mp.address, secondItem);
 
         const order = await mp.orders(secondOrder);
@@ -205,7 +223,7 @@ describe("Marketplace", function () {
         await expect(mp.cancelOrder(firstOrder))
           .to.emit(mp, "CancelledOrder")
           .withArgs(firstOrder, false)
-          .and.to.emit(nft, "Transfer")
+          .and.to.emit(eiCollection, "Transfer")
           .withArgs(mp.address, owner.address, firstItem);
       });
     });
@@ -238,7 +256,7 @@ describe("Marketplace", function () {
         await expect(mp.connect(alice).buyOrder(firstOrder))
           .to.emit(mp, "Purchase")
           .withArgs(firstOrder, firstItem, owner.address, alice.address, tenTokens)
-          .and.to.emit(nft, "Transfer")
+          .and.to.emit(eiCollection, "Transfer")
           .withArgs(mp.address, alice.address, firstItem)
           .and.to.emit(acdmToken, "Transfer")
           .withArgs(alice.address, owner.address, tenTokens)
@@ -266,7 +284,7 @@ describe("Marketplace", function () {
         await expect(mp.listAuction(firstItem, tenTokens, bidStep))
           .to.emit(mp, "PlacedOrder")
           .withArgs(firstOrder, firstItem, owner.address, tenTokens)
-          .and.to.emit(nft, "Transfer")
+          .and.to.emit(eiCollection, "Transfer")
           .withArgs(owner.address, mp.address, firstItem);
       });
     });
@@ -387,7 +405,7 @@ describe("Marketplace", function () {
         await expect(mp.finishAuction(firstOrder))
           .to.emit(mp, "AuctionFinished")
           .withArgs(firstOrder, 3) // '3' is the number of bids
-          .and.to.emit(nft, "Transfer")
+          .and.to.emit(eiCollection, "Transfer")
           .withArgs(mp.address, bob.address, firstItem)
           .and.to.emit(acdmToken, "Transfer")
           .withArgs(mp.address, owner.address, tenTokens);
@@ -406,7 +424,7 @@ describe("Marketplace", function () {
           .withArgs(firstOrder, 1) // '1' is the number of bids
           .and.to.emit(acdmToken, "Transfer")
           .withArgs(mp.address, alice.address, tenTokens)
-          .and.to.emit(nft, "Transfer")
+          .and.to.emit(eiCollection, "Transfer")
           .withArgs(mp.address, owner.address, firstItem);
       });
     });
@@ -450,7 +468,7 @@ describe("Marketplace", function () {
 
     it("Should be able to get bids history", async () => {
       await mp.cancelOrder(firstOrder);
-      await nft.approve(mp.address, firstItem);
+      await eiCollection.approve(mp.address, firstItem);
       await mp.listAuction(firstItem, bidStep, bidStep);
 
       // Making bids
@@ -471,7 +489,7 @@ describe("Marketplace", function () {
     it("Should be able to get bids by order id", async () => {
       // Starting auction
       await mp.cancelOrder(firstOrder);
-      await nft.approve(mp.address, firstItem);
+      await eiCollection.approve(mp.address, firstItem);
       await mp.listAuction(firstItem, bidStep, bidStep);
       // Making bids
       await mp.connect(alice).makeBid(secondOrder, bidStep.mul(3));

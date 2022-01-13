@@ -11,7 +11,7 @@ contract EssentialImages is Ownable, ERC721URIStorage {
     using Counters for Counters.Counter;
 
     /** A counter for tracking token ids. */
-    Counters.Counter public tokenIds;
+    Counters.Counter private tokenIds;
 
     /** @notice Creates a new ERC-721 item collection.
      * @param name Name of the collection.
@@ -30,7 +30,7 @@ contract EssentialImages is Ownable, ERC721URIStorage {
      * Emits a {Transfer} event.
      */
     function safeMint(address to, string memory tokenURI)
-        public
+        external
         onlyOwner
         returns (uint256)
     {
