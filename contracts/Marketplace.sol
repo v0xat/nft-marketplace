@@ -172,6 +172,14 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit BiddingTimeChanged(msg.sender, _biddingTime);
   }
 
+  /** @notice Places an order to sell an item with a fixed price.
+   *
+   * Requirements:
+   * - `basePrice` can't be zero.
+   *
+   * @param itemId Item ID.
+   * @param basePrice Price of the item.
+   */
   function listFixedPrice(uint256 itemId, uint256 basePrice)
     external
     whenNotPaused
@@ -191,6 +199,16 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
   }
 
+  /** @notice Places an order to sell an item at an auction.
+   *
+   * Requirements:
+   * - `basePrice` can't be zero.
+   * - `bidStep` can't be zero.
+   *
+   * @param itemId Item ID.
+   * @param basePrice Price of the item.
+   * @param bidStep Bid step.
+   */
   function listAuction(uint256 itemId, uint256 basePrice, uint256 bidStep)
     external
     whenNotPaused
@@ -213,6 +231,9 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
   }
 
+  /** @notice Allows user to buy an item from an order with a fixed price.
+   * @param orderId Order ID.
+   */
   function buyOrder(uint256 orderId)
     external
     whenNotPaused
@@ -228,6 +249,14 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     _cancelOrder(orderId, true);
   }
 
+  /** @notice Allows user to bid on an auction.
+   *
+   * Requirements:
+   * - `bidAmount` must be higher than the last bid + bid step.
+   *
+   * @param orderId Order ID.
+   * @param bidAmount Amount in ACDM tokens.
+   */
   function makeBid(uint256 orderId, uint256 bidAmount) external whenNotPaused {
     Order storage order = orders[orderId];
     require(order.expiresAt > block.timestamp, "Bidding time is over");
@@ -255,6 +284,13 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit NewHighestBid(orderId, msg.sender, bidAmount);
   }
 
+  /** @notice Allows user to cancel an order with a fixed price.
+   *
+   * Requirements:
+   * - `msg.sender` must be the creator of the order.
+   *
+   * @param orderId Order ID.
+   */
   function cancelOrder(uint256 orderId) external whenNotPaused {
     Order memory order = orders[orderId];
     require(msg.sender == order.maker, "Not the order creator");
@@ -263,6 +299,14 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     _cancelOrder(orderId, false);
   }
 
+  /** @notice Allows user to finish the auction.
+   *
+   * Requirements:
+   * - `msg.sender` must be the creator of the order.
+   * - `order.expiresAt` must be greater than the current timestamp (`block.timestamp`).
+   *
+   * @param orderId Order ID.
+   */
   function finishAuction(uint256 orderId) external whenNotPaused {
     Order storage order = orders[orderId];
     require(order.endTime == 0, "No such order");
@@ -284,6 +328,17 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit AuctionFinished(orderId, numBids);
   }
 
+  /** @notice Exchanges ACDM tokens and Items between users.
+   * @dev `payer` here is either `itemRecipient` or `address(0)`
+   * which means that we should transfer ACDM from the contract.
+   *
+   * @param orderId Order ID.
+   * @param itemId Item ID.
+   * @param price Item price in ACDM tokens.
+   * @param payer Address of the payer.
+   * @param itemOwner Address of the item owner.
+   * @param itemRecipient Address of the item recipient.
+   */
   function _exchange(
     uint256 orderId,
     uint256 itemId,
@@ -299,15 +354,29 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit Purchase(orderId, itemId, itemOwner, itemRecipient, price);
   }
 
+  /** @notice Transfers Item to specified address.
+   * @param from The address to transfer from.
+   * @param to The address to transfer to.
+   * @param itemId Item ID.
+   */
   function _transferItem(address from, address to, uint256 itemId) private {
     acdmItems.safeTransferFrom(from, to, itemId);
   }
 
+  /** @notice Transfers ACDM tokens between users.
+   * @param from The address to transfer from.
+   * @param to The address to transfer to.
+   * @param amount Transfer amount in ACDM tokens.
+   */
   function _transferTokens(address from, address to, uint256 amount) private {
     if (from != address(0)) IERC20(acdmToken).safeTransferFrom(from, to, amount);
     else IERC20(acdmToken).safeTransfer(to, amount);
   }
 
+  /** @notice Cancelling order by id.
+   * @param orderId Order ID.
+   * @param isSold Indicates wheter order was purchased or simply cancelled by the owner.
+   */
   function _cancelOrder(uint256 orderId, bool isSold) private {
     Order storage order = orders[orderId];
     order.endTime = block.timestamp;
@@ -318,6 +387,10 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     emit CancelledOrder(orderId, isSold);
   }
 
+  /** @notice Checks if item is currently listed on the marketplace.
+   * @param itemId Item ID.
+   * @return boob Whether the item in an open order.
+   */
   function isListed(uint256 itemId) external view returns(bool) {
     uint256 numOrders = _numOrders.current();
     for (uint256 i = 1; i <= numOrders; i++) {
@@ -327,6 +400,9 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     return false;
   }
 
+  /** @notice Returns the entire order history on the market.
+   * @return Array of `Order` structs.
+   */
   function getOrdersHistory() external view returns(Order[] memory) {
     uint256 numOrders = _numOrders.current();
     Order[] memory ordersArr = new Order[](numOrders);
@@ -337,6 +413,9 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     return ordersArr;
   }
 
+  /** @notice Returns current open orders on the market.
+   * @return Array of `Order` structs.
+   */
   function getOpenOrders() external view returns(Order[] memory) {
     uint256 numOrders = _numOrders.current();
     Order[] memory openOrders = new Order[](numOrders);
@@ -353,6 +432,9 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     return openOrders;
   }
 
+  /** @notice Returns all marketplace bids sorted by orders.
+   * @return Array of arrays (`Bid` structs array by each order).
+   */
   function getBidsHistory() external view returns (Bid[][] memory) {
     uint256 numOrders = _numOrders.current();
     Bid[][] memory bidsHistory = new Bid[][](numOrders);
@@ -364,6 +446,10 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     return bidsHistory;
   }
 
+  /** @notice Returns all bids by order id.
+   * @param orderId Order ID.
+   * @return Array of `Bid` structs.
+   */
   function getBidsByOrder(uint256 orderId) public view returns (Bid[] memory) {
     uint256 numBids = orders[orderId].numBids;
     Bid[] memory orderBids = new Bid[](numBids);
