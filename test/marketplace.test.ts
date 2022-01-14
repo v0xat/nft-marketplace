@@ -1,8 +1,9 @@
 import { expect } from "chai";
-import { ethers, network } from "hardhat";
+import { ethers } from "hardhat";
 import { Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
+import * as snapshot from "./utils";
 import testData from "./fixtures/sample-nft-metadata.json";
 
 // Token metadata
@@ -37,20 +38,6 @@ const minterRole = ethers.utils.solidityKeccak256(["string"], ["MINTER_ROLE"]);
 const burnerRole = ethers.utils.solidityKeccak256(["string"], ["BURNER_ROLE"]);
 const creatorRole = ethers.utils.solidityKeccak256(["string"], ["CREATOR_ROLE"]);
 
-const takeSnapshot = async (): Promise<any> => {
-  return await network.provider.request({
-    method: "evm_snapshot",
-    params: [],
-  });
-};
-
-const restoreSnapshot = async (id: string) => {
-  await network.provider.request({
-    method: "evm_revert",
-    params: [id],
-  });
-};
-
 describe("Marketplace", function () {
   let mp: Contract,
     acdmToken: Contract,
@@ -61,7 +48,7 @@ describe("Marketplace", function () {
     alice: SignerWithAddress,
     bob: SignerWithAddress,
     addrs: SignerWithAddress[],
-    snapshotId: string;
+    snapId: string;
 
   before(async () => {
     [owner, alice, bob, ...addrs] = await ethers.getSigners();
@@ -114,11 +101,11 @@ describe("Marketplace", function () {
   });
 
   beforeEach(async () => {
-    snapshotId = await takeSnapshot();
+    snapId = await snapshot.take();
   });
 
   afterEach(async () => {
-    await restoreSnapshot(snapshotId);
+    await snapshot.restore(snapId);
   });
 
   describe("Deployment", function () {

@@ -3,6 +3,8 @@ import { ethers } from "hardhat";
 import { BigNumber, Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
+import * as snapshot from "./utils";
+
 // Token metadata
 const tokenName = "AcademyToken";
 const symbol = "ACDM";
@@ -21,14 +23,13 @@ describe("Token", function () {
     owner: SignerWithAddress,
     alice: SignerWithAddress,
     bob: SignerWithAddress,
-    token: Contract;
+    token: Contract,
+    snapId: string;
 
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
     Token = await ethers.getContractFactory(tokenName);
-  });
 
-  beforeEach(async () => {
     token = await Token.deploy(tokenName, symbol);
     await token.deployed();
 
@@ -39,6 +40,14 @@ describe("Token", function () {
     await token.connect(alice).mint(owner.address, amount);
     // await token.connect(alice).mint(alice.address, amount);
     await token.connect(alice).mint(bob.address, amount);
+  });
+
+  beforeEach(async () => {
+    snapId = await snapshot.take();
+  });
+
+  afterEach(async () => {
+    await snapshot.restore(snapId);
   });
 
   describe("Deployment", function () {

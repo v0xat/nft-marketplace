@@ -22,5 +22,8 @@ module.exports = {
     ],
     "node/no-unpublished-import": ["warn"],
     "max-len": [1, { code: 90 }],
+    "node/no-missing-import": ["error", {
+      "tryExtensions": [".ts", ".js", ".json", ".node"]
+    }]
   },
 };
