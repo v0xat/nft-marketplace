@@ -11,7 +11,6 @@ const tokenSymbol = "ACDM";
 const decimals = 18;
 const tenTokens = ethers.utils.parseUnits("10.0", decimals);
 const twentyTokens = ethers.utils.parseUnits("20.0", decimals);
-const thirtyTokens = ethers.utils.parseUnits("30.0", decimals);
 
 // NFT metadata
 const eiCollectionName = "EssentialImages";
@@ -457,10 +456,9 @@ describe("Marketplace", function () {
       await mp.connect(alice).listFixedPrice(secondItem, tenTokens);
       await mp.connect(alice).buyOrder(firstOrder);
 
-      // for some reason it returns 2 elements
+      console.log(await mp.estimateGas.getOpenOrders());
       const orders = await mp.getOpenOrders();
-      // console.log(orders);
-      expect(orders.length).to.be.equal(2);
+      expect(orders.length).to.be.equal(1);
       expect(orders[0].endTime).to.be.equal(0);
       expect(orders[0].maker).to.be.equal(alice.address);
       expect(orders[0].basePrice).to.be.equal(tenTokens);

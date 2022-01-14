@@ -31,7 +31,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
   /** Maximum auction duration timestamp. */
   uint256 public maxBiddingTime;
 
-  /** Counts number of orders. */
+  /** Counts total number of orders. */
   Counters.Counter private _numOrders;
 
   /** Address of the token contract used to pay for items. */
@@ -428,18 +428,29 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
    * @return Array of `Order` structs.
    */
   function getOpenOrders() external view returns(Order[] memory) {
-    uint256 numOrders = _numOrders.current();
-    Order[] memory openOrders = new Order[](numOrders);
+    Order[] memory openOrders = new Order[](countOpenOrders());
 
     uint256 counter;
+    uint256 numOrders = _numOrders.current();
     for (uint256 i = 1; i <= numOrders; i++) {
       if (orders[i].endTime == 0) {
-        // console.log("check");
         openOrders[counter] = orders[i];
         counter++;
       }
     }
     return openOrders;
+  }
+
+  /** @notice Counts currently open orders.
+   * @return numOpenOrders Number of open orders.
+   */
+  function countOpenOrders() public view returns(uint256 numOpenOrders) {
+    uint256 numOrders = _numOrders.current();
+    for (uint256 i = 1; i <= numOrders; i++) {
+      if (orders[i].endTime == 0) {
+        numOpenOrders++;
+      }
+    }
   }
 
   /** @notice Returns all marketplace bids sorted by orders.
