@@ -5,17 +5,18 @@ pragma solidity ^0.8.10;
 // import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-import "./assets/erc20/AcademyToken.sol";
+import "./Sweepable.sol";
 import "./assets/erc721/EssentialImages.sol";
 
 /** @title NFT marketplace creation contract.
  * @author https://github.com/v0xat
  */
-contract Marketplace is IERC721Receiver, AccessControl, Pausable {
+contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC721Receiver {
   using SafeERC20 for IERC20;
   using Counters for Counters.Counter;
 
@@ -78,6 +79,8 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     uint256 itemId;
     /** Base price in ACDM tokens. */
     uint256 basePrice;
+    /** Listing timestamp. */
+    uint256 listedAt;
     /** Expiration timestamp - 0 for fixed price. */
     uint256 expiresAt;
     /** Ending time - set at cancellation. */
@@ -202,6 +205,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     Order storage newOrder = orders[numOrders];
     newOrder.itemId = itemId;
     newOrder.basePrice = basePrice;
+    newOrder.listedAt = block.timestamp;
     newOrder.maker = msg.sender;
     newOrder.orderType = OrderType.FixedPrice;
 
@@ -232,6 +236,7 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     Order storage newOrder = orders[numOrders];
     newOrder.itemId = itemId;
     newOrder.basePrice = basePrice;
+    newOrder.listedAt = block.timestamp;
     newOrder.expiresAt = block.timestamp + biddingTime;
     newOrder.bidStep = bidStep;
     newOrder.maker = msg.sender;
@@ -480,6 +485,11 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     }
 
     return orderBids;
+  }
+
+  /** This override required because both ERC1155 and AccessControl include supportsInterface. */
+  function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155Receiver, AccessControl) returns (bool) {
+    return super.supportsInterface(interfaceId);
   }
 
   /** Always returns `IERC721Receiver.onERC721Received.selector`. */

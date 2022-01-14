@@ -138,6 +138,14 @@ describe("Marketplace", function () {
     });
   });
 
+  describe("Sweepable", function () {
+    it("Only admin should be able to call sweep", async () => {
+      await expect(
+        mp.connect(alice).sweep(acdmToken.address, tenTokens, alice.address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+  });
+
   describe("Pausable", function () {
     it("Should be able to pause & unpause contract", async () => {
       await mp.pause();
