@@ -11,6 +11,7 @@ const tokenSymbol = "ACDM";
 const decimals = 18;
 const tenTokens = ethers.utils.parseUnits("10.0", decimals);
 const twentyTokens = ethers.utils.parseUnits("20.0", decimals);
+const thirtyTokens = ethers.utils.parseUnits("30.0", decimals);
 
 // NFT metadata
 const eiCollectionName = "EssentialImages";
