@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
@@ -36,6 +36,20 @@ const minterRole = ethers.utils.solidityKeccak256(["string"], ["MINTER_ROLE"]);
 const burnerRole = ethers.utils.solidityKeccak256(["string"], ["BURNER_ROLE"]);
 const creatorRole = ethers.utils.solidityKeccak256(["string"], ["CREATOR_ROLE"]);
 
+const takeSnapshot = async (): Promise<any> => {
+  return await network.provider.request({
+    method: "evm_snapshot",
+    params: [],
+  });
+};
+
+const restoreSnapshot = async (id: string) => {
+  await network.provider.request({
+    method: "evm_revert",
+    params: [id],
+  });
+};
+
 describe("Marketplace", function () {
   let mp: Contract,
     acdmToken: Contract,
@@ -45,15 +59,14 @@ describe("Marketplace", function () {
     owner: SignerWithAddress,
     alice: SignerWithAddress,
     bob: SignerWithAddress,
-    addrs: SignerWithAddress[];
+    addrs: SignerWithAddress[],
+    snapshotId: string;
 
   before(async () => {
     [owner, alice, bob, ...addrs] = await ethers.getSigners();
     ACDMtoken = await ethers.getContractFactory(tokenName);
     Marketplace = await ethers.getContractFactory("Marketplace");
-  });
 
-  beforeEach(async () => {
     // Deploy token
     acdmToken = await ACDMtoken.deploy(tokenName, tokenSymbol);
     await acdmToken.deployed();
@@ -97,6 +110,14 @@ describe("Marketplace", function () {
     // Approving items to Marketplace
     await eiCollection.approve(mp.address, firstItem);
     await eiCollection.connect(alice).approve(mp.address, secondItem);
+  });
+
+  beforeEach(async () => {
+    snapshotId = await takeSnapshot();
+  });
+
+  afterEach(async () => {
+    await restoreSnapshot(snapshotId);
   });
 
   describe("Deployment", function () {
