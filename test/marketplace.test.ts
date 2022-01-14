@@ -456,7 +456,6 @@ describe("Marketplace", function () {
       await mp.connect(alice).listFixedPrice(secondItem, tenTokens);
       await mp.connect(alice).buyOrder(firstOrder);
 
-      console.log(await mp.estimateGas.getOpenOrders());
       const orders = await mp.getOpenOrders();
       expect(orders.length).to.be.equal(1);
       expect(orders[0].endTime).to.be.equal(0);
