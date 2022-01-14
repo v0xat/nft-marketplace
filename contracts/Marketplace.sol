@@ -281,10 +281,10 @@ contract Marketplace is IERC721Receiver, AccessControl, Pausable {
     );
 
     // Transfer ACDM tokens
-    _transferTokens(msg.sender, address(this), bidAmount);
+    _transferTokens(msg.sender, address(this), lastBid.bidder == msg.sender ? (bidAmount - lastBid.amount) : bidAmount);
 
     // Return ACDM to the last bidder
-    if (numBids > 0) _transferTokens(address(0), lastBid.bidder, lastBid.amount);
+    if (numBids > 0 && lastBid.bidder != msg.sender) _transferTokens(address(0), lastBid.bidder, lastBid.amount);
 
     order.numBids++;
     bids[orderId][order.numBids] = Bid({

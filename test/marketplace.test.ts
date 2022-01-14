@@ -98,7 +98,7 @@ describe("Marketplace", function () {
     await acdmToken.mint(bob.address, twentyTokens.mul(2));
 
     // Approve token to marketplace
-    await acdmToken.approve(mp.address, twentyTokens);
+    await acdmToken.approve(mp.address, twentyTokens.mul(2));
     await acdmToken.connect(alice).approve(mp.address, twentyTokens);
     await acdmToken.connect(bob).approve(mp.address, twentyTokens.mul(2));
     await acdmToken.connect(addrs[0]).approve(mp.address, twentyTokens);
@@ -378,6 +378,19 @@ describe("Marketplace", function () {
 
         // Check owner got his tokens back
         expect(await acdmToken.balanceOf(owner.address)).to.be.equal(ownerBalance);
+      });
+
+      it("Transfer only diff between bids if new bidder is the same as the last", async () => {
+        const ownerBalance = await acdmToken.balanceOf(owner.address);
+        await mp.makeBid(firstOrder, twentyTokens);
+
+        await expect(mp.makeBid(firstOrder, thirtyTokens))
+          .to.emit(acdmToken, "Transfer")
+          .withArgs(owner.address, mp.address, tenTokens);
+
+        expect(await acdmToken.balanceOf(owner.address)).to.be.equal(
+          ownerBalance.sub(thirtyTokens)
+        );
       });
     });
 
