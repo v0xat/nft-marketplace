@@ -186,7 +186,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     emit BiddingTimeChanged(msg.sender, _biddingTime);
   }
 
-  /** @notice Places an order to sell an item with a fixed price.
+  /** @notice Lists user item with a fixed price on the marketplace.
    *
    * Requirements:
    * - `basePrice` can't be zero.
@@ -199,22 +199,10 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     whenNotPaused
     notZero(basePrice)
   {
-    _numOrders.increment();
-    uint256 numOrders = _numOrders.current();
-
-    Order storage newOrder = orders[numOrders];
-    newOrder.itemId = itemId;
-    newOrder.basePrice = basePrice;
-    newOrder.listedAt = block.timestamp;
-    newOrder.maker = msg.sender;
-    newOrder.orderType = OrderType.FixedPrice;
-
-    _transferItem(msg.sender, address(this), itemId);
-
-    emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
+    _addOrder(itemId, basePrice, 0, OrderType.FixedPrice);
   }
 
-  /** @notice Places an order to sell an item at an auction.
+  /** @notice Lists user auction item on the marketplace.
    *
    * Requirements:
    * - `basePrice` can't be zero.
@@ -230,21 +218,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     notZero(basePrice)
     notZero(bidStep)
   {
-    _numOrders.increment();
-    uint256 numOrders = _numOrders.current();
-
-    Order storage newOrder = orders[numOrders];
-    newOrder.itemId = itemId;
-    newOrder.basePrice = basePrice;
-    newOrder.listedAt = block.timestamp;
-    newOrder.expiresAt = block.timestamp + biddingTime;
-    newOrder.bidStep = bidStep;
-    newOrder.maker = msg.sender;
-    newOrder.orderType = OrderType.Auction;
-
-    _transferItem(msg.sender, address(this), itemId);
-
-    emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
+    _addOrder(itemId, basePrice, bidStep, OrderType.Auction);
   }
 
   /** @notice Allows user to buy an item from an order with a fixed price.
@@ -342,6 +316,33 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     }
 
     emit AuctionFinished(orderId, numBids);
+  }
+
+  /** @notice Adds new order to the marketplace.
+   *
+   * Emits a {PlacedOrder} event.
+   *
+   * @param itemId Item ID.
+   * @param basePrice Price of the item.
+   * @param bidStep Bid step.
+   * @param orderType Order type (see `OrderType` enum).
+   */
+  function _addOrder(uint256 itemId, uint256 basePrice, uint256 bidStep, OrderType orderType) private {
+    _numOrders.increment();
+    uint256 numOrders = _numOrders.current();
+
+    Order storage order = orders[numOrders];
+    order.itemId = itemId;
+    order.basePrice = basePrice;
+    order.listedAt = block.timestamp;
+    order.expiresAt = orderType == OrderType.Auction ? block.timestamp + biddingTime : 0;
+    order.bidStep = bidStep;
+    order.maker = msg.sender;
+    order.orderType = orderType;
+
+    _transferItem(msg.sender, address(this), itemId);
+
+    emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
   }
 
   /** @notice Exchanges ACDM tokens and Items between users.
