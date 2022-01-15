@@ -335,10 +335,12 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     order.itemId = itemId;
     order.basePrice = basePrice;
     order.listedAt = block.timestamp;
-    order.expiresAt = orderType == OrderType.Auction ? block.timestamp + biddingTime : 0;
-    order.bidStep = bidStep;
     order.maker = msg.sender;
     order.orderType = orderType;
+    if (orderType == OrderType.Auction) {
+      order.expiresAt = block.timestamp + biddingTime;
+      order.bidStep = bidStep;
+    }
 
     _transferItem(msg.sender, address(this), itemId);
 
