@@ -14,9 +14,15 @@ const tenTokens = ethers.utils.parseUnits("10.0", decimals);
 const twentyTokens = ethers.utils.parseUnits("20.0", decimals);
 const thirtyTokens = ethers.utils.parseUnits("30.0", decimals);
 
-// NFT metadata
+// Academy 721 metadata
 const name721 = "Academy721";
-const symbol721 = "academy721";
+const symbol721 = "acdm721";
+
+// Academy 1155 metadata
+const name1155 = "Academy1155";
+const uri1155 = "https://gateway.pinata.cloud/ipfs/uri/{id}.json";
+const mintBatchIds = [0, 1, 2];
+const mintBatchAmounts = [1, 1, 15];
 
 // Test data
 const biddingTime = 259200; // 3 days in seconds
@@ -42,6 +48,7 @@ describe("Marketplace", function () {
   let mp: Contract,
     acdmToken: Contract,
     acdm721: Contract,
+    acdm1155: Contract,
     Marketplace: ContractFactory,
     ACDMtoken: ContractFactory,
     owner: SignerWithAddress,
@@ -67,13 +74,17 @@ describe("Marketplace", function () {
       acdmToken.address,
       alice.address,
       name721,
-      symbol721
+      symbol721,
+      uri1155
     );
     await mp.deployed();
 
-    // Getting NFT contract
-    const addrs721: string = await mp.acdm721();
-    acdm721 = await ethers.getContractAt(name721, addrs721);
+    // Getting assets contracts
+    let addr: string = await mp.acdm721();
+    acdm721 = await ethers.getContractAt(name721, addr);
+
+    addr = await mp.acdm1155();
+    acdm1155 = await ethers.getContractAt(name1155, addr);
 
     // Grant Minter & Burner role to admin
     await acdmToken.grantRole(minterRole, owner.address);
@@ -109,20 +120,23 @@ describe("Marketplace", function () {
   });
 
   describe("Deployment", function () {
-    it("Should set Marketplace as NFT contract owner", async () => {
-      expect(await acdm721.owner()).to.equal(mp.address);
+    it("Should set right assets contracts addresses", async () => {
+      expect(await mp.acdmToken()).to.be.equal(acdmToken.address);
+      expect(await mp.acdm721()).to.be.equal(acdm721.address);
+      expect(await mp.acdm1155()).to.be.equal(acdm1155.address);
+    });
+
+    it("Should set Marketplace as nft assets owner", async () => {
+      expect(await acdm721.owner()).to.be.equal(mp.address);
+      expect(await acdm1155.owner()).to.be.equal(mp.address);
+    });
+
+    it("Should set right 1155 URI", async () => {
+      expect(await acdm1155.uri(1)).to.be.equal(uri1155);
     });
 
     it("Should set right acdmToken owner", async () => {
       expect(await acdmToken.hasRole(adminRole, owner.address)).to.equal(true);
-    });
-
-    it("Should set right acdmToken contract address", async () => {
-      expect(await mp.acdmToken()).to.be.equal(acdmToken.address);
-    });
-
-    it("Should set right NFT contract address", async () => {
-      expect(await mp.acdm721()).to.be.equal(acdm721.address);
     });
 
     it("Should set right bidding time", async () => {
@@ -132,6 +146,7 @@ describe("Marketplace", function () {
     });
 
     it("Roles should be set correctly", async () => {
+      expect(await mp.hasRole(adminRole, owner.address)).to.equal(true);
       expect(await mp.hasRole(creatorRole, alice.address)).to.equal(true);
       expect(await acdmToken.hasRole(minterRole, owner.address)).to.equal(true);
       expect(await acdmToken.hasRole(burnerRole, owner.address)).to.equal(true);
@@ -143,6 +158,16 @@ describe("Marketplace", function () {
       await expect(
         mp.connect(alice).sweep(acdmToken.address, tenTokens, alice.address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("Sweep works", async () => {
+      await mp.listAuction(firstItem, tenTokens, bidStep);
+      await mp.connect(alice).makeBid(firstOrder, twentyTokens);
+      await expect(mp.sweep(acdmToken.address, twentyTokens, alice.address))
+        .to.emit(mp, "TokenSweep")
+        .withArgs(owner.address, acdmToken.address, twentyTokens, alice.address)
+        .and.to.emit(acdmToken, "Transfer")
+        .withArgs(mp.address, alice.address, twentyTokens);
     });
   });
 
@@ -189,17 +214,40 @@ describe("Marketplace", function () {
   });
 
   describe("Creating items", function () {
-    it("Only address with CREATOR_ROLE should be able to create item", async () => {
+    it("Only address with CREATOR_ROLE should be able to create items", async () => {
       await expect(mp.createItem(owner.address, birdURI)).to.be.revertedWith(
+        `AccessControl: account ${owner.address.toLowerCase()} is missing role ${creatorRole}`
+      );
+      await expect(
+        mp.createItemsBatch(owner.address, [1, 2, 3], [1, 5, 10])
+      ).to.be.revertedWith(
         `AccessControl: account ${owner.address.toLowerCase()} is missing role ${creatorRole}`
       );
     });
 
-    it("Creator should be able to create item", async () => {
+    it("Creator should be able to create ERC721 item", async () => {
       await expect(mp.connect(alice).createItem(owner.address, birdURI))
         .and.to.emit(acdm721, "Transfer")
         .withArgs(zeroAddr, owner.address, 3);
       expect(await acdm721.tokenURI(3)).to.equal(birdURI);
+    });
+
+    it("Creator should be able to create ERC1155 items", async () => {
+      await expect(
+        mp.connect(alice).createItemsBatch(owner.address, mintBatchIds, mintBatchAmounts)
+      )
+        .to.emit(acdm1155, "TransferBatch")
+        .withArgs(mp.address, zeroAddr, owner.address, mintBatchIds, mintBatchAmounts);
+
+      expect(await acdm1155.balanceOf(owner.address, mintBatchIds[0])).to.be.equal(
+        mintBatchAmounts[0]
+      );
+      expect(await acdm1155.balanceOf(owner.address, mintBatchIds[1])).to.be.equal(
+        mintBatchAmounts[1]
+      );
+      expect(await acdm1155.balanceOf(owner.address, mintBatchIds[2])).to.be.equal(
+        mintBatchAmounts[2]
+      );
     });
   });
 
