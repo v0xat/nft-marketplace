@@ -6,8 +6,8 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import testData from "./fixtures/sample-nft-metadata.json";
 
 // NFT metadata
-const nftName = "EssentialImages";
-const symbol = "EI";
+const name = "Academy721";
+const symbol = "acdm721";
 
 // Test data
 const zeroAddr = ethers.constants.AddressZero;
@@ -16,48 +16,48 @@ const coronaURI: string = testData.corona.metadata;
 const firstItemID = 1;
 const secondItemID = 2;
 
-describe("ERC721", function () {
-  let ERC721: ContractFactory,
+describe("Academy721", function () {
+  let Academy721: ContractFactory,
     owner: SignerWithAddress,
     alice: SignerWithAddress,
     bob: SignerWithAddress,
-    nft: Contract;
+    acdm: Contract;
 
   before(async () => {
     [owner, alice, bob] = await ethers.getSigners();
-    ERC721 = await ethers.getContractFactory(nftName);
+    Academy721 = await ethers.getContractFactory(name);
   });
 
   beforeEach(async () => {
-    nft = await ERC721.deploy(nftName, symbol);
-    await nft.deployed();
+    acdm = await Academy721.deploy(name, symbol);
+    await acdm.deployed();
   });
 
   describe("Deployment", function () {
     it("Has a name", async () => {
-      expect(await nft.name()).to.be.equal(nftName);
+      expect(await acdm.name()).to.be.equal(name);
     });
 
     it("Has a symbol", async () => {
-      expect(await nft.symbol()).to.be.equal(symbol);
+      expect(await acdm.symbol()).to.be.equal(symbol);
     });
 
     it("Should set the correct owner of the contract", async () => {
-      expect(await nft.owner()).to.equal(owner.address);
+      expect(await acdm.owner()).to.equal(owner.address);
     });
   });
 
   describe("Minting", function () {
     it("Owner can mint new item", async () => {
-      await expect(nft.safeMint(owner.address, birdURI))
-        .to.emit(nft, "Transfer")
+      await expect(acdm.safeMint(owner.address, birdURI))
+        .to.emit(acdm, "Transfer")
         .withArgs(zeroAddr, owner.address, firstItemID);
 
-      expect(await nft.tokenURI(firstItemID)).to.equal(birdURI);
+      expect(await acdm.tokenURI(firstItemID)).to.equal(birdURI);
     });
 
     it("Only owner can call mint", async () => {
-      await expect(nft.connect(alice).safeMint(bob.address, birdURI)).to.be.revertedWith(
+      await expect(acdm.connect(alice).safeMint(bob.address, birdURI)).to.be.revertedWith(
         "Ownable: caller is not the owner"
       );
     });
@@ -66,23 +66,23 @@ describe("ERC721", function () {
   describe("Getting item data", function () {
     beforeEach(async () => {
       // Minting 2 items
-      await nft.safeMint(owner.address, birdURI);
-      await nft.safeMint(alice.address, coronaURI);
+      await acdm.safeMint(owner.address, birdURI);
+      await acdm.safeMint(alice.address, coronaURI);
     });
 
     it("Can get tokenURI by id", async () => {
-      expect(await nft.tokenURI(firstItemID)).to.be.equal(birdURI);
-      expect(await nft.tokenURI(secondItemID)).to.be.equal(coronaURI);
+      expect(await acdm.tokenURI(firstItemID)).to.be.equal(birdURI);
+      expect(await acdm.tokenURI(secondItemID)).to.be.equal(coronaURI);
     });
 
     it("Can get item owner by id", async () => {
-      expect(await nft.ownerOf(firstItemID)).to.be.equal(owner.address);
-      expect(await nft.ownerOf(secondItemID)).to.be.equal(alice.address);
+      expect(await acdm.ownerOf(firstItemID)).to.be.equal(owner.address);
+      expect(await acdm.ownerOf(secondItemID)).to.be.equal(alice.address);
     });
 
     it("Can get item owner by id", async () => {
-      expect(await nft.ownerOf(firstItemID)).to.be.equal(owner.address);
-      expect(await nft.ownerOf(secondItemID)).to.be.equal(alice.address);
+      expect(await acdm.ownerOf(firstItemID)).to.be.equal(owner.address);
+      expect(await acdm.ownerOf(secondItemID)).to.be.equal(alice.address);
     });
   });
 

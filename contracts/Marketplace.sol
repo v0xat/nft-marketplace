@@ -11,7 +11,8 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "./Sweepable.sol";
-import "./assets/erc721/EssentialImages.sol";
+import "./assets/erc721/Academy721.sol";
+import "./assets/erc1155/Academy1155.sol";
 
 /** @title NFT marketplace creation contract.
  * @author https://github.com/v0xat
@@ -39,7 +40,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
   address public acdmToken;
 
   /** Address of the NFT contract. */
-  address public eiCollection;
+  address public acdm721;
 
   /** Emitted when a new order is placed. */
   event PlacedOrder(uint256 indexed orderId, uint256 indexed itemId, address indexed owner, uint256 basePrice);
@@ -75,7 +76,9 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
 
   /** Order struct. */
   struct Order {
-    /** EssentialItems item id. */
+    /** Item contract address. */
+    address itemContract;
+    /** Item id. */
     uint256 itemId;
     /** Base price in ACDM tokens. */
     uint256 basePrice;
@@ -132,7 +135,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     maxBiddingTime = _maxBiddingTime;
 
     acdmToken = _token;
-    eiCollection = address(new EssentialImages(_nftName, _nftSymbol));
+    acdm721 = address(new Academy721(_nftName, _nftSymbol));
 
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _setupRole(CREATOR_ROLE, _itemCreator);
@@ -166,7 +169,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     whenNotPaused
     returns (uint256 itemId)
   {
-    itemId = EssentialImages(eiCollection).safeMint(to, tokenURI);
+    itemId = Academy721(acdm721).safeMint(to, tokenURI);
   }
 
   /** @notice Mints new ERC721 item.
@@ -379,7 +382,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    * @param itemId Item ID.
    */
   function _transferItem(address from, address to, uint256 itemId) private {
-    EssentialImages(eiCollection).safeTransferFrom(from, to, itemId);
+    Academy721(acdm721).safeTransferFrom(from, to, itemId);
   }
 
   /** @notice Transfers ACDM tokens between users.

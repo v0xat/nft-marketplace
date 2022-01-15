@@ -15,8 +15,8 @@ const twentyTokens = ethers.utils.parseUnits("20.0", decimals);
 const thirtyTokens = ethers.utils.parseUnits("30.0", decimals);
 
 // NFT metadata
-const eiCollectionName = "EssentialImages";
-const eiCollectionSymbol = "EI";
+const name721 = "Academy721";
+const symbol721 = "academy721";
 
 // Test data
 const biddingTime = 259200; // 3 days in seconds
@@ -41,7 +41,7 @@ const creatorRole = ethers.utils.solidityKeccak256(["string"], ["CREATOR_ROLE"])
 describe("Marketplace", function () {
   let mp: Contract,
     acdmToken: Contract,
-    eiCollection: Contract,
+    acdm721: Contract,
     Marketplace: ContractFactory,
     ACDMtoken: ContractFactory,
     owner: SignerWithAddress,
@@ -66,14 +66,14 @@ describe("Marketplace", function () {
       maxBiddingTime,
       acdmToken.address,
       alice.address,
-      eiCollectionName,
-      eiCollectionSymbol
+      name721,
+      symbol721
     );
     await mp.deployed();
 
     // Getting NFT contract
-    const eiAddr: string = await mp.eiCollection();
-    eiCollection = await ethers.getContractAt(eiCollectionName, eiAddr);
+    const addrs721: string = await mp.acdm721();
+    acdm721 = await ethers.getContractAt(name721, addrs721);
 
     // Grant Minter & Burner role to admin
     await acdmToken.grantRole(minterRole, owner.address);
@@ -96,8 +96,8 @@ describe("Marketplace", function () {
     await mp.connect(alice).createItem(alice.address, coronaURI);
 
     // Approving items to Marketplace
-    await eiCollection.approve(mp.address, firstItem);
-    await eiCollection.connect(alice).approve(mp.address, secondItem);
+    await acdm721.approve(mp.address, firstItem);
+    await acdm721.connect(alice).approve(mp.address, secondItem);
   });
 
   beforeEach(async () => {
@@ -110,7 +110,7 @@ describe("Marketplace", function () {
 
   describe("Deployment", function () {
     it("Should set Marketplace as NFT contract owner", async () => {
-      expect(await eiCollection.owner()).to.equal(mp.address);
+      expect(await acdm721.owner()).to.equal(mp.address);
     });
 
     it("Should set right acdmToken owner", async () => {
@@ -122,7 +122,7 @@ describe("Marketplace", function () {
     });
 
     it("Should set right NFT contract address", async () => {
-      expect(await mp.eiCollection()).to.be.equal(eiCollection.address);
+      expect(await mp.acdm721()).to.be.equal(acdm721.address);
     });
 
     it("Should set right bidding time", async () => {
@@ -197,9 +197,9 @@ describe("Marketplace", function () {
 
     it("Creator should be able to create item", async () => {
       await expect(mp.connect(alice).createItem(owner.address, birdURI))
-        .and.to.emit(eiCollection, "Transfer")
+        .and.to.emit(acdm721, "Transfer")
         .withArgs(zeroAddr, owner.address, 3);
-      expect(await eiCollection.tokenURI(3)).to.equal(birdURI);
+      expect(await acdm721.tokenURI(3)).to.equal(birdURI);
     });
   });
 
@@ -220,7 +220,7 @@ describe("Marketplace", function () {
         await expect(mp.connect(alice).listFixedPrice(secondItem, tenTokens))
           .to.emit(mp, "PlacedOrder")
           .withArgs(secondOrder, secondItem, alice.address, tenTokens)
-          .and.to.emit(eiCollection, "Transfer")
+          .and.to.emit(acdm721, "Transfer")
           .withArgs(alice.address, mp.address, secondItem);
 
         const order = await mp.orders(secondOrder);
@@ -239,7 +239,7 @@ describe("Marketplace", function () {
         await expect(mp.cancelOrder(firstOrder))
           .to.emit(mp, "CancelledOrder")
           .withArgs(firstOrder, false)
-          .and.to.emit(eiCollection, "Transfer")
+          .and.to.emit(acdm721, "Transfer")
           .withArgs(mp.address, owner.address, firstItem);
       });
     });
@@ -272,7 +272,7 @@ describe("Marketplace", function () {
         await expect(mp.connect(alice).buyOrder(firstOrder))
           .to.emit(mp, "Purchase")
           .withArgs(firstOrder, firstItem, owner.address, alice.address, tenTokens)
-          .and.to.emit(eiCollection, "Transfer")
+          .and.to.emit(acdm721, "Transfer")
           .withArgs(mp.address, alice.address, firstItem)
           .and.to.emit(acdmToken, "Transfer")
           .withArgs(alice.address, owner.address, tenTokens)
@@ -300,7 +300,7 @@ describe("Marketplace", function () {
         await expect(mp.listAuction(firstItem, tenTokens, bidStep))
           .to.emit(mp, "PlacedOrder")
           .withArgs(firstOrder, firstItem, owner.address, tenTokens)
-          .and.to.emit(eiCollection, "Transfer")
+          .and.to.emit(acdm721, "Transfer")
           .withArgs(owner.address, mp.address, firstItem);
       });
     });
@@ -434,7 +434,7 @@ describe("Marketplace", function () {
         await expect(mp.finishAuction(firstOrder))
           .to.emit(mp, "AuctionFinished")
           .withArgs(firstOrder, 3) // '3' is the number of bids
-          .and.to.emit(eiCollection, "Transfer")
+          .and.to.emit(acdm721, "Transfer")
           .withArgs(mp.address, bob.address, firstItem)
           .and.to.emit(acdmToken, "Transfer")
           .withArgs(mp.address, owner.address, tenTokens);
@@ -453,7 +453,7 @@ describe("Marketplace", function () {
           .withArgs(firstOrder, 1) // '1' is the number of bids
           .and.to.emit(acdmToken, "Transfer")
           .withArgs(mp.address, alice.address, tenTokens)
-          .and.to.emit(eiCollection, "Transfer")
+          .and.to.emit(acdm721, "Transfer")
           .withArgs(mp.address, owner.address, firstItem);
       });
     });
@@ -495,7 +495,7 @@ describe("Marketplace", function () {
 
     it("Should be able to get bids history", async () => {
       await mp.cancelOrder(firstOrder);
-      await eiCollection.approve(mp.address, firstItem);
+      await acdm721.approve(mp.address, firstItem);
       await mp.listAuction(firstItem, bidStep, bidStep);
 
       // Making bids
@@ -516,7 +516,7 @@ describe("Marketplace", function () {
     it("Should be able to get bids by order id", async () => {
       // Starting auction
       await mp.cancelOrder(firstOrder);
-      await eiCollection.approve(mp.address, firstItem);
+      await acdm721.approve(mp.address, firstItem);
       await mp.listAuction(firstItem, bidStep, bidStep);
       // Making bids
       await mp.connect(alice).makeBid(secondOrder, bidStep.mul(3));
