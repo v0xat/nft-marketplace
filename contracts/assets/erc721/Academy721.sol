@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 /** ERC721 item creation contract. */
-contract Academy721 is Ownable, ERC721URIStorage {
+contract Academy721 is ERC721URIStorage, Ownable {
   using Counters for Counters.Counter;
 
   /** A counter for tracking token ids. */
