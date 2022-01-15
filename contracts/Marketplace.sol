@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "./Sweepable.sol";
+import "./AssetsInterface.sol";
 import "./assets/erc721/Academy721.sol";
 import "./assets/erc1155/Academy1155.sol";
 
@@ -39,8 +40,11 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
   /** Address of the token contract used to pay for items. */
   address public acdmToken;
 
-  /** Address of the NFT contract. */
+  /** Address of the Academy 721 contract. */
   address public acdm721;
+
+  /** Address of the Academy 1155 contract. */
+  address public acdm1155;
 
   /** Emitted when a new order is placed. */
   event PlacedOrder(uint256 indexed orderId, uint256 indexed itemId, address indexed owner, uint256 basePrice);
@@ -120,6 +124,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    * @param _itemCreator The address of the item creator.
    * @param _nftName Name of the EssentialImages contract.
    * @param _nftSymbol Symbol of the EssentialImages contract.
+   * @param _uri URI for 1155 token types.
    */
   constructor(
     uint256 _biddingTime,
@@ -128,7 +133,8 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     address _token,
     address _itemCreator,
     string memory _nftName,
-    string memory _nftSymbol
+    string memory _nftSymbol,
+    string memory _uri
   ) {
     biddingTime = _biddingTime;
     minBiddingTime = _minBiddingTime;
@@ -136,6 +142,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
 
     acdmToken = _token;
     acdm721 = address(new Academy721(_nftName, _nftSymbol));
+    acdm1155 = address(new Academy1155(_uri));
 
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _setupRole(CREATOR_ROLE, _itemCreator);
@@ -169,10 +176,27 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     whenNotPaused
     returns (uint256 itemId)
   {
-    itemId = Academy721(acdm721).safeMint(to, tokenURI);
+    itemId = IAssetsInterface(acdm721).safeMint(to, tokenURI);
   }
 
-  /** @notice Mints new ERC721 item.
+  /** @notice Mint a batch of tokens into existence and send them to the `to` address.
+   * @param to The address to receive all NFTs within the newly-minted group.
+   * @param ids The item IDs for the new items to create.
+   * @param amounts The amount of each corresponding item ID to create.
+   */
+  function createItemsBatch(
+    address to,
+    uint256[] memory ids,
+    uint256[] memory amounts
+  )
+    external
+    onlyRole(CREATOR_ROLE)
+    whenNotPaused
+  {
+    IAssetsInterface(acdm1155).mintBatch(to, ids, amounts, "");
+  }
+
+  /** @notice Changes bidding time.
    * @dev Available only to admin.
    *
    * Emits a {BiddingTimeChanged} event.
