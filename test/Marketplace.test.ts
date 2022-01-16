@@ -28,7 +28,6 @@ const biddingTime = 259200; // 3 days
 const minBiddingTime = 86400; // 1 day
 const maxBiddingTime = 1209600; // 14 days
 const bidStep = ethers.utils.parseUnits("1.0", decimals);
-const zeroAddr = ethers.constants.AddressZero;
 const firstItemURI = "https://gateway.pinata.cloud/ipfs/uri/1.json";
 const secondItemURI = "https://gateway.pinata.cloud/ipfs/uri/2.json";
 const firstItem = 1;
