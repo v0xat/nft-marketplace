@@ -133,17 +133,26 @@ describe("Academy721", function () {
   describe("Getting item data", function () {
     it("Can get tokenURI by id", async () => {
       expect(await acdm.tokenURI(1)).to.be.equal(itemURI);
-      expect(await acdm.tokenURI(2)).to.be.equal(itemURI);
     });
 
     it("Can get item owner by id", async () => {
       expect(await acdm.ownerOf(1)).to.be.equal(owner.address);
-      expect(await acdm.ownerOf(2)).to.be.equal(alice.address);
     });
 
     it("Can get user balances", async () => {
       expect(await acdm.balanceOf(owner.address)).to.be.equal(1);
-      expect(await acdm.balanceOf(alice.address)).to.be.equal(1);
+    });
+
+    it("Can't get owner for nonexistent token", async () => {
+      await expect(acdm.ownerOf(15)).to.be.revertedWith(
+        "ERC721: owner query for nonexistent token"
+      );
+    });
+
+    it("Can't get balance of zero address", async () => {
+      await expect(acdm.balanceOf(zeroAddr)).to.be.revertedWith(
+        "ERC721: balance query for the zero address"
+      );
     });
   });
 });
