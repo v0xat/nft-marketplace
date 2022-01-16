@@ -206,7 +206,6 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
   function changeBiddingTime(uint256 _biddingTime)
     external
     onlyRole(DEFAULT_ADMIN_ROLE)
-    whenNotPaused
   {
     require(_biddingTime > minBiddingTime && _biddingTime < maxBiddingTime, "Time must be within the min and max");
     biddingTime = _biddingTime;

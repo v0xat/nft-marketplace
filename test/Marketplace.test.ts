@@ -174,11 +174,11 @@ describe("Marketplace", function () {
   describe("Pausable", function () {
     it("Should be able to pause & unpause contract", async () => {
       await mp.pause();
-      await expect(mp.changeBiddingTime(biddingTime)).to.be.revertedWith(
+      await expect(mp.listFixedPrice(firstItem, tenTokens)).to.be.revertedWith(
         "Pausable: paused"
       );
       await mp.unpause();
-      await mp.changeBiddingTime(biddingTime);
+      await mp.listFixedPrice(firstItem, tenTokens);
     });
 
     it("Only admin should be able to pause contract", async () => {
