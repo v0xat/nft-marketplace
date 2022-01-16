@@ -47,7 +47,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
   address public acdm1155;
 
   /** Emitted when a new order is placed. */
-  event PlacedOrder(uint256 indexed orderId, uint256 indexed itemId, address indexed owner, uint256 basePrice);
+  event PlacedOrder(uint256 indexed orderId, address itemContract, uint256 indexed itemId, address indexed owner, uint256 basePrice);
 
   /** Emitted when an order is cancelled. */
   event CancelledOrder(uint256 indexed orderId, bool isSold);
@@ -62,7 +62,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
   event AuctionFinished(uint256 indexed orderId, uint256 numBids);
 
   /** Emitted when a new purchase occures. */
-  event Purchase(uint256 indexed orderId, uint256 indexed itemId, address maker, address taker, uint256 price);
+  event Purchase(uint256 indexed orderId, address itemContract, uint256 indexed itemId, address maker, address taker, uint256 price);
 
   /**
    * @dev Checks if the given number is greater than zero.
@@ -220,12 +220,12 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    * @param itemId Item ID.
    * @param basePrice Price of the item.
    */
-  function listFixedPrice(uint256 itemId, uint256 basePrice)
+  function listFixedPrice(address itemContract, uint256 itemId, uint256 basePrice)
     external
     whenNotPaused
     notZero(basePrice)
   {
-    _addOrder(itemId, basePrice, 0, OrderType.FixedPrice);
+    _addOrder(itemContract, itemId, basePrice, 0, OrderType.FixedPrice);
   }
 
   /** @notice Lists user auction item on the marketplace.
@@ -238,13 +238,13 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    * @param basePrice Price of the item.
    * @param bidStep Bid step.
    */
-  function listAuction(uint256 itemId, uint256 basePrice, uint256 bidStep)
+  function listAuction(address itemContract, uint256 itemId, uint256 basePrice, uint256 bidStep)
     external
     whenNotPaused
     notZero(basePrice)
     notZero(bidStep)
   {
-    _addOrder(itemId, basePrice, bidStep, OrderType.Auction);
+    _addOrder(itemContract, itemId, basePrice, bidStep, OrderType.Auction);
   }
 
   /** @notice Allows user to buy an item from an order with a fixed price.
@@ -260,7 +260,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     require(msg.sender != order.maker, "Can't buy from yourself");
 
     // Transfer NFT to `msg.sender` and ACDM to order maker
-    _exchange(orderId, order.itemId, order.basePrice, msg.sender, order.maker, msg.sender);
+    _exchange(orderId, order.itemContract, order.itemId, order.basePrice, msg.sender, order.maker, msg.sender);
 
     _cancelOrder(orderId, true);
   }
@@ -333,7 +333,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     uint256 numBids = order.numBids;
     Bid storage lastBid = bids[orderId][numBids];
     if (numBids > 2) {
-      _exchange(orderId, order.itemId, lastBid.amount, address(0), order.maker, lastBid.bidder);
+      _exchange(orderId, order.itemContract, order.itemId, lastBid.amount, address(0), order.maker, lastBid.bidder);
       _cancelOrder(orderId, true);
     } else {
       // Return ACDM to the last bidder
@@ -348,16 +348,18 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    *
    * Emits a {PlacedOrder} event.
    *
+   * @param itemContract Item contract address.
    * @param itemId Item ID.
    * @param basePrice Price of the item.
    * @param bidStep Bid step.
    * @param orderType Order type (see `OrderType` enum).
    */
-  function _addOrder(uint256 itemId, uint256 basePrice, uint256 bidStep, OrderType orderType) private {
+  function _addOrder(address itemContract, uint256 itemId, uint256 basePrice, uint256 bidStep, OrderType orderType) private {
     _numOrders.increment();
     uint256 numOrders = _numOrders.current();
 
     Order storage order = orders[numOrders];
+    order.itemContract = itemContract;
     order.itemId = itemId;
     order.basePrice = basePrice;
     order.listedAt = block.timestamp;
@@ -368,9 +370,9 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
       order.bidStep = bidStep;
     }
 
-    _transferItem(msg.sender, address(this), itemId);
+    _transferItem(msg.sender, address(this), itemContract, itemId);
 
-    emit PlacedOrder(numOrders, itemId, msg.sender, basePrice);
+    emit PlacedOrder(numOrders, itemContract, itemId, msg.sender, basePrice);
   }
 
   /** @notice Exchanges ACDM tokens and Items between users.
@@ -378,6 +380,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    * which means that we should transfer ACDM from the contract.
    *
    * @param orderId Order ID.
+   * @param itemContract Item contract address.
    * @param itemId Item ID.
    * @param price Item price in ACDM tokens.
    * @param payer Address of the payer.
@@ -386,6 +389,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    */
   function _exchange(
     uint256 orderId,
+    address itemContract,
     uint256 itemId,
     uint256 price,
     address payer,
@@ -394,18 +398,20 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
   ) private {
     _transferTokens(payer, itemOwner, price);
 
-    _transferItem(address(this), itemRecipient, itemId);
+    _transferItem(address(this), itemRecipient, itemContract, itemId);
 
-    emit Purchase(orderId, itemId, itemOwner, itemRecipient, price);
+    emit Purchase(orderId, itemContract, itemId, itemOwner, itemRecipient, price);
   }
 
   /** @notice Transfers Item to specified address.
    * @param from The address to transfer from.
    * @param to The address to transfer to.
+   * @param itemContract Item contract address.
    * @param itemId Item ID.
    */
-  function _transferItem(address from, address to, uint256 itemId) private {
-    Academy721(acdm721).safeTransferFrom(from, to, itemId);
+  function _transferItem(address from, address to, address itemContract, uint256 itemId) private {
+    itemContract == acdm1155 ? IAssets(itemContract).safeTransferFrom(from, to, itemId, 1, "")
+    : IAssets(itemContract).safeTransferFrom(from, to, itemId);
   }
 
   /** @notice Transfers ACDM tokens between users.
@@ -427,20 +433,24 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     order.endTime = block.timestamp;
 
     // Return item if it's not sold
-    if (!isSold) _transferItem(address(this), order.maker, order.itemId);
+    if (!isSold) _transferItem(address(this), order.maker, order.itemContract, order.itemId);
 
     emit CancelledOrder(orderId, isSold);
   }
 
   /** @notice Checks if item is currently listed on the marketplace.
+   * @param itemContract Item contract address.
    * @param itemId Item ID.
    * @return boob Whether the item in an open order.
    */
-  function isListed(uint256 itemId) external view returns(bool) {
+  function isListed(address itemContract, uint256 itemId) external view returns(bool) {
     uint256 numOrders = _numOrders.current();
     for (uint256 i = 1; i <= numOrders; i++) {
-      if (orders[i].endTime == 0 && orders[i].itemId == itemId)
-        return true;
+      if (
+        orders[i].endTime == 0
+        && orders[i].itemId == itemId
+        && orders[i].itemContract == itemContract
+      ) return true;
     }
     return false;
   }
