@@ -51,6 +51,13 @@ describe("Academy1155", function () {
     });
   });
 
+  describe("URI", function () {
+    it("Can change URI", async () => {
+      await acdm.setURI("new-uri");
+      expect(await acdm.uri(0)).to.be.equal("new-uri");
+    });
+  });
+
   describe("Ownership", function () {
     it("Only owner can mint items", async () => {
       await expect(
@@ -62,6 +69,20 @@ describe("Academy1155", function () {
       await expect(acdm.connect(alice).setURI(uri)).to.be.revertedWith(
         "Ownable: caller is not the owner"
       );
+    });
+  });
+
+  describe("Minting", function () {
+    it("Mint batch emits event", async () => {
+      await expect(acdm.mintBatch(owner.address, mintIds, mintAmounts, DATA))
+        .to.emit(acdm, "TransferBatch")
+        .withArgs(owner.address, zeroAddr, owner.address, mintIds, mintAmounts);
+    });
+
+    it("Can't mint to zero address", async () => {
+      await expect(
+        acdm.mintBatch(zeroAddr, mintIds, mintAmounts, DATA)
+      ).to.be.revertedWith("ERC1155: mint to the zero address");
     });
   });
 
