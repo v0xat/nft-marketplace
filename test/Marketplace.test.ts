@@ -20,13 +20,13 @@ const symbol721 = "acdm721";
 // Academy 1155 metadata
 const name1155 = "Academy1155";
 const uri1155 = "https://gateway.pinata.cloud/ipfs/uri/{id}.json";
-const mintBatchIds = [0, 1, 2];
-const mintBatchAmounts = [1, 1, 15];
+const mintBatchIds = [0, 1];
+const mintBatchAmounts = [1, 1];
 
 // Test data
-const biddingTime = 259200; // 3 days in seconds
-const minBiddingTime = 86400; // 1 day in seconds
-const maxBiddingTime = 1209600; // 14 days in seconds
+const biddingTime = 259200; // 3 days
+const minBiddingTime = 86400; // 1 day
+const maxBiddingTime = 1209600; // 14 days
 const bidStep = ethers.utils.parseUnits("1.0", decimals);
 const zeroAddr = ethers.constants.AddressZero;
 const firstItemURI = "https://gateway.pinata.cloud/ipfs/uri/1.json";
@@ -105,9 +105,19 @@ describe("Marketplace", function () {
     await mp.connect(alice).createItem(owner.address, firstItemURI);
     await mp.connect(alice).createItem(alice.address, secondItemURI);
 
+    // Minting 1155 items
+    await mp
+      .connect(alice)
+      .createItemsBatch(owner.address, mintBatchIds, mintBatchAmounts);
+    await mp
+      .connect(alice)
+      .createItemsBatch(alice.address, mintBatchIds, mintBatchAmounts);
+
     // Approving items to Marketplace
     await acdm721.approve(mp.address, firstItem);
     await acdm721.connect(alice).approve(mp.address, secondItem);
+    await acdm1155.setApprovalForAll(mp.address, true);
+    await acdm1155.connect(alice).setApprovalForAll(mp.address, true);
   });
 
   beforeEach(async () => {
@@ -160,7 +170,7 @@ describe("Marketplace", function () {
     });
 
     it("Sweep works", async () => {
-      await mp.listAuction(firstItem, tenTokens, bidStep);
+      await mp.listAuction(acdm721.address, firstItem, tenTokens, bidStep);
       await mp.connect(alice).makeBid(firstOrder, twentyTokens);
       await expect(mp.sweep(acdmToken.address, twentyTokens, alice.address))
         .to.emit(mp, "TokenSweep")
@@ -173,11 +183,11 @@ describe("Marketplace", function () {
   describe("Pausable", function () {
     it("Should be able to pause & unpause contract", async () => {
       await mp.pause();
-      await expect(mp.listFixedPrice(firstItem, tenTokens)).to.be.revertedWith(
-        "Pausable: paused"
-      );
+      await expect(
+        mp.listFixedPrice(acdm721.address, firstItem, tenTokens)
+      ).to.be.revertedWith("Pausable: paused");
       await mp.unpause();
-      await mp.listFixedPrice(firstItem, tenTokens);
+      await mp.listFixedPrice(acdm721.address, firstItem, tenTokens);
     });
 
     it("Only admin should be able to pause contract", async () => {
@@ -217,35 +227,8 @@ describe("Marketplace", function () {
       await expect(mp.createItem(owner.address, firstItemURI)).to.be.revertedWith(
         `AccessControl: account ${owner.address.toLowerCase()} is missing role ${creatorRole}`
       );
-      await expect(
-        mp.createItemsBatch(owner.address, [1, 2, 3], [1, 5, 10])
-      ).to.be.revertedWith(
+      await expect(mp.createItemsBatch(owner.address, [1, 2], [1, 5])).to.be.revertedWith(
         `AccessControl: account ${owner.address.toLowerCase()} is missing role ${creatorRole}`
-      );
-    });
-
-    it("Creator should be able to create ERC721 item", async () => {
-      await expect(mp.connect(alice).createItem(owner.address, birdURI))
-        .and.to.emit(acdm721, "Transfer")
-        .withArgs(zeroAddr, owner.address, 3);
-      expect(await acdm721.tokenURI(3)).to.equal(birdURI);
-    });
-
-    it("Creator should be able to create ERC1155 items", async () => {
-      await expect(
-        mp.connect(alice).createItemsBatch(owner.address, mintBatchIds, mintBatchAmounts)
-      )
-        .to.emit(acdm1155, "TransferBatch")
-        .withArgs(mp.address, zeroAddr, owner.address, mintBatchIds, mintBatchAmounts);
-
-      expect(await acdm1155.balanceOf(owner.address, mintBatchIds[0])).to.be.equal(
-        mintBatchAmounts[0]
-      );
-      expect(await acdm1155.balanceOf(owner.address, mintBatchIds[1])).to.be.equal(
-        mintBatchAmounts[1]
-      );
-      expect(await acdm1155.balanceOf(owner.address, mintBatchIds[2])).to.be.equal(
-        mintBatchAmounts[2]
       );
     });
   });
@@ -253,20 +236,22 @@ describe("Marketplace", function () {
   describe("Fixed price orders", function () {
     beforeEach(async () => {
       // Listing first item
-      await mp.listFixedPrice(firstItem, tenTokens);
+      await mp.listFixedPrice(acdm721.address, firstItem, tenTokens);
     });
 
     describe("Listing item", function () {
       it("Can't place order with zero price", async () => {
-        await expect(mp.listFixedPrice(firstItem, 0)).to.be.revertedWith(
+        await expect(mp.listFixedPrice(acdm721.address, firstItem, 0)).to.be.revertedWith(
           "Price & bid step can't be zero"
         );
       });
 
       it("Listing emits events", async () => {
-        await expect(mp.connect(alice).listFixedPrice(secondItem, tenTokens))
+        await expect(
+          mp.connect(alice).listFixedPrice(acdm721.address, secondItem, tenTokens)
+        )
           .to.emit(mp, "PlacedOrder")
-          .withArgs(secondOrder, secondItem, alice.address, tenTokens)
+          .withArgs(secondOrder, acdm721.address, secondItem, alice.address, tenTokens)
           .and.to.emit(acdm721, "Transfer")
           .withArgs(alice.address, mp.address, secondItem);
 
@@ -299,7 +284,9 @@ describe("Marketplace", function () {
       });
 
       it("Can't buy an auction order", async () => {
-        await mp.connect(alice).listAuction(secondItem, tenTokens, bidStep);
+        await mp
+          .connect(alice)
+          .listAuction(acdm721.address, secondItem, tenTokens, bidStep);
         await expect(mp.buyOrder(secondOrder)).to.be.revertedWith(
           "Can't buy auction order"
         );
@@ -318,7 +305,14 @@ describe("Marketplace", function () {
       it("Buying emits events", async () => {
         await expect(mp.connect(alice).buyOrder(firstOrder))
           .to.emit(mp, "Purchase")
-          .withArgs(firstOrder, firstItem, owner.address, alice.address, tenTokens)
+          .withArgs(
+            firstOrder,
+            acdm721.address,
+            firstItem,
+            owner.address,
+            alice.address,
+            tenTokens
+          )
           .and.to.emit(acdm721, "Transfer")
           .withArgs(mp.address, alice.address, firstItem)
           .and.to.emit(acdmToken, "Transfer")
@@ -332,21 +326,21 @@ describe("Marketplace", function () {
   describe("Auction orders", function () {
     describe("Placing order", function () {
       it("Can't place order with zero price", async () => {
-        await expect(mp.listAuction(firstItem, 0, bidStep)).to.be.revertedWith(
-          "Price & bid step can't be zero"
-        );
+        await expect(
+          mp.listAuction(acdm721.address, firstItem, 0, bidStep)
+        ).to.be.revertedWith("Price & bid step can't be zero");
       });
 
       it("Can't place order with zero bidStep", async () => {
-        await expect(mp.listAuction(firstItem, tenTokens, 0)).to.be.revertedWith(
-          "Price & bid step can't be zero"
-        );
+        await expect(
+          mp.listAuction(acdm721.address, firstItem, tenTokens, 0)
+        ).to.be.revertedWith("Price & bid step can't be zero");
       });
 
       it("Listing emits events", async () => {
-        await expect(mp.listAuction(firstItem, tenTokens, bidStep))
+        await expect(mp.listAuction(acdm721.address, firstItem, tenTokens, bidStep))
           .to.emit(mp, "PlacedOrder")
-          .withArgs(firstOrder, firstItem, owner.address, tenTokens)
+          .withArgs(firstOrder, acdm721.address, firstItem, owner.address, tenTokens)
           .and.to.emit(acdm721, "Transfer")
           .withArgs(owner.address, mp.address, firstItem);
       });
@@ -354,8 +348,9 @@ describe("Marketplace", function () {
 
     describe("Bidding", function () {
       beforeEach(async () => {
-        // Listing items
-        await mp.connect(alice).listAuction(secondItem, tenTokens, bidStep);
+        await mp
+          .connect(alice)
+          .listAuction(acdm721.address, secondItem, tenTokens, bidStep);
       });
 
       it("Can't bid less than the highest bid", async () => {
@@ -383,7 +378,7 @@ describe("Marketplace", function () {
       });
 
       it("Can't make a bid on fixed price order", async () => {
-        await mp.listFixedPrice(firstItem, tenTokens);
+        await mp.listFixedPrice(acdm721.address, firstItem, tenTokens);
         await expect(
           mp.connect(alice).makeBid(secondOrder, twentyTokens)
         ).to.be.revertedWith("Bidding time is over");
@@ -423,6 +418,7 @@ describe("Marketplace", function () {
         expect(await acdmToken.balanceOf(owner.address)).to.be.equal(ownerBalance);
       });
 
+      // eslint-disable-next-line max-len
       it("Transfer only diff between bids if new bidder is the same as the last", async () => {
         const ownerBalance = await acdmToken.balanceOf(owner.address);
         await mp.makeBid(firstOrder, twentyTokens);
@@ -439,12 +435,11 @@ describe("Marketplace", function () {
 
     describe("Finish auction", function () {
       beforeEach(async () => {
-        // Listing item
-        await mp.listAuction(firstItem, bidStep, bidStep);
+        await mp.listAuction(acdm721.address, firstItem, bidStep, bidStep);
       });
 
       it("Can't finish fixed price order", async () => {
-        await mp.connect(alice).listFixedPrice(secondItem, tenTokens);
+        await mp.connect(alice).listFixedPrice(acdm721.address, secondItem, tenTokens);
         await expect(mp.connect(alice).finishAuction(secondOrder)).to.be.revertedWith(
           "Not an auction order"
         );
@@ -508,7 +503,7 @@ describe("Marketplace", function () {
 
   describe("Getters", function () {
     beforeEach(async () => {
-      await mp.listFixedPrice(firstItem, twentyTokens);
+      await mp.listFixedPrice(acdm721.address, firstItem, twentyTokens);
     });
 
     it("Should be able to get order by id", async () => {
@@ -519,7 +514,7 @@ describe("Marketplace", function () {
     });
 
     it("Should be able to get orders history", async () => {
-      await mp.connect(alice).listFixedPrice(secondItem, tenTokens);
+      await mp.connect(alice).listFixedPrice(acdm721.address, secondItem, tenTokens);
       await mp.connect(alice).buyOrder(firstOrder);
 
       const orders = await mp.getOrdersHistory();
@@ -530,7 +525,7 @@ describe("Marketplace", function () {
     });
 
     it("Should be able to get current open orders", async () => {
-      await mp.connect(alice).listFixedPrice(secondItem, tenTokens);
+      await mp.connect(alice).listFixedPrice(acdm721.address, secondItem, tenTokens);
       await mp.connect(alice).buyOrder(firstOrder);
 
       const orders = await mp.getOpenOrders();
@@ -543,14 +538,14 @@ describe("Marketplace", function () {
     it("Should be able to get bids history", async () => {
       await mp.cancelOrder(firstOrder);
       await acdm721.approve(mp.address, firstItem);
-      await mp.listAuction(firstItem, bidStep, bidStep);
+      await mp.listAuction(acdm721.address, firstItem, bidStep, bidStep);
 
       // Making bids
       await mp.connect(alice).makeBid(secondOrder, bidStep.mul(3));
       await mp.connect(addrs[0]).makeBid(secondOrder, bidStep.mul(5));
       await mp.connect(bob).makeBid(secondOrder, tenTokens);
 
-      await mp.connect(alice).listAuction(secondItem, bidStep, bidStep);
+      await mp.connect(alice).listAuction(acdm721.address, secondItem, bidStep, bidStep);
       await mp.connect(bob).makeBid(3, bidStep.mul(3));
 
       const history = await mp.getBidsHistory();
@@ -564,7 +559,7 @@ describe("Marketplace", function () {
       // Starting auction
       await mp.cancelOrder(firstOrder);
       await acdm721.approve(mp.address, firstItem);
-      await mp.listAuction(firstItem, bidStep, bidStep);
+      await mp.listAuction(acdm721.address, firstItem, bidStep, bidStep);
       // Making bids
       await mp.connect(alice).makeBid(secondOrder, bidStep.mul(3));
       await mp.connect(addrs[0]).makeBid(secondOrder, bidStep.mul(5));
@@ -585,7 +580,7 @@ describe("Marketplace", function () {
       expect(bids[2].bidder).to.be.equal(bob.address);
 
       // Test third order
-      await mp.connect(alice).listAuction(secondItem, bidStep, bidStep);
+      await mp.connect(alice).listAuction(acdm721.address, secondItem, bidStep, bidStep);
       await mp.connect(bob).makeBid(3, bidStep.mul(3));
       bids = await mp.getBidsByOrder(3);
       expect(bids.length).to.be.equal(1);
@@ -594,8 +589,11 @@ describe("Marketplace", function () {
     });
 
     it("Should be able to check if item is listed", async () => {
-      expect(await mp.isListed(firstItem)).to.be.equal(true);
-      expect(await mp.isListed(secondItem)).to.be.equal(false);
+      expect(await mp.isListed(acdm721.address, firstItem)).to.be.equal(true);
+      expect(await mp.isListed(acdm721.address, secondItem)).to.be.equal(false);
+      await mp.listFixedPrice(acdm1155.address, firstItem, tenTokens);
+      expect(await mp.isListed(acdm1155.address, firstItem)).to.be.equal(true);
+      expect(await mp.isListed(acdm1155.address, secondItem)).to.be.equal(false);
     });
   });
 });
