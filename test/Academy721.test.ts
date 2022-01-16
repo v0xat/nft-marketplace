@@ -141,9 +141,9 @@ describe("Academy721", function () {
       expect(await acdm.ownerOf(2)).to.be.equal(alice.address);
     });
 
-    it("Can get item owner by id", async () => {
-      expect(await acdm.ownerOf(1)).to.be.equal(owner.address);
-      expect(await acdm.ownerOf(2)).to.be.equal(alice.address);
+    it("Can get user balances", async () => {
+      expect(await acdm.balanceOf(owner.address)).to.be.equal(1);
+      expect(await acdm.balanceOf(alice.address)).to.be.equal(1);
     });
   });
 });
