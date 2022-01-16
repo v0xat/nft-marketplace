@@ -3,16 +3,14 @@ import { ethers } from "hardhat";
 import { Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-import testData from "./fixtures/sample-nft-metadata.json";
-
 // NFT metadata
 const name = "Academy721";
 const symbol = "acdm721";
 
 // Test data
 const zeroAddr = ethers.constants.AddressZero;
-const birdURI: string = testData.bird.metadata;
-const coronaURI: string = testData.corona.metadata;
+const firstItemURI = "https://gateway.pinata.cloud/ipfs/uri/1.json";
+const secondItemURI = "https://gateway.pinata.cloud/ipfs/uri/2.json";
 const firstItemID = 1;
 const secondItemID = 2;
 
@@ -49,30 +47,30 @@ describe("Academy721", function () {
 
   describe("Minting", function () {
     it("Owner can mint new item", async () => {
-      await expect(acdm.safeMint(owner.address, birdURI))
+      await expect(acdm.safeMint(owner.address, firstItemURI))
         .to.emit(acdm, "Transfer")
         .withArgs(zeroAddr, owner.address, firstItemID);
 
-      expect(await acdm.tokenURI(firstItemID)).to.equal(birdURI);
+      expect(await acdm.tokenURI(firstItemID)).to.equal(firstItemURI);
     });
 
     it("Only owner can call mint", async () => {
-      await expect(acdm.connect(alice).safeMint(bob.address, birdURI)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
+      await expect(
+        acdm.connect(alice).safeMint(bob.address, firstItemURI)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 
   describe("Getting item data", function () {
     beforeEach(async () => {
       // Minting 2 items
-      await acdm.safeMint(owner.address, birdURI);
-      await acdm.safeMint(alice.address, coronaURI);
+      await acdm.safeMint(owner.address, firstItemURI);
+      await acdm.safeMint(alice.address, secondItemURI);
     });
 
     it("Can get tokenURI by id", async () => {
-      expect(await acdm.tokenURI(firstItemID)).to.be.equal(birdURI);
-      expect(await acdm.tokenURI(secondItemID)).to.be.equal(coronaURI);
+      expect(await acdm.tokenURI(firstItemID)).to.be.equal(firstItemURI);
+      expect(await acdm.tokenURI(secondItemID)).to.be.equal(secondItemURI);
     });
 
     it("Can get item owner by id", async () => {

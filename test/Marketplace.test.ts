@@ -4,7 +4,6 @@ import { Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import * as snapshot from "./utils";
-import testData from "./fixtures/sample-nft-metadata.json";
 
 // Token metadata
 const tokenName = "AcademyToken";
@@ -30,8 +29,8 @@ const minBiddingTime = 86400; // 1 day in seconds
 const maxBiddingTime = 1209600; // 14 days in seconds
 const bidStep = ethers.utils.parseUnits("1.0", decimals);
 const zeroAddr = ethers.constants.AddressZero;
-const birdURI: string = testData.bird.metadata;
-const coronaURI: string = testData.corona.metadata;
+const firstItemURI = "https://gateway.pinata.cloud/ipfs/uri/1.json";
+const secondItemURI = "https://gateway.pinata.cloud/ipfs/uri/2.json";
 const firstItem = 1;
 const secondItem = 2;
 const firstOrder = 1;
@@ -102,9 +101,9 @@ describe("Marketplace", function () {
     await acdmToken.connect(bob).approve(mp.address, twentyTokens.mul(2));
     await acdmToken.connect(addrs[0]).approve(mp.address, twentyTokens);
 
-    // Minting 2 items
-    await mp.connect(alice).createItem(owner.address, birdURI);
-    await mp.connect(alice).createItem(alice.address, coronaURI);
+    // Minting 721 items
+    await mp.connect(alice).createItem(owner.address, firstItemURI);
+    await mp.connect(alice).createItem(alice.address, secondItemURI);
 
     // Approving items to Marketplace
     await acdm721.approve(mp.address, firstItem);
@@ -215,7 +214,7 @@ describe("Marketplace", function () {
 
   describe("Creating items", function () {
     it("Only address with CREATOR_ROLE should be able to create items", async () => {
-      await expect(mp.createItem(owner.address, birdURI)).to.be.revertedWith(
+      await expect(mp.createItem(owner.address, firstItemURI)).to.be.revertedWith(
         `AccessControl: account ${owner.address.toLowerCase()} is missing role ${creatorRole}`
       );
       await expect(
