@@ -130,7 +130,7 @@ describe("Marketplace", function () {
 
   describe("Deployment", function () {
     it("Should set right assets contracts addresses", async () => {
-      expect(await mp.acdmToken()).to.be.equal(acdmToken.address);
+      expect(await mp.acceptedToken()).to.be.equal(acdmToken.address);
       expect(await mp.acdm721()).to.be.equal(acdm721.address);
       expect(await mp.acdm1155()).to.be.equal(acdm1155.address);
     });

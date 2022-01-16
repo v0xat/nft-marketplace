@@ -37,8 +37,8 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
   /** Counts total number of orders. */
   Counters.Counter private _numOrders;
 
-  /** Address of the token contract used to pay for items. */
-  address public acdmToken;
+  /** Address of the token used to pay for items. */
+  address public acceptedToken;
 
   /** Address of the Academy 721 contract. */
   address public acdm721;
@@ -120,7 +120,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    * @dev Grants `DEFAULT_ADMIN_ROLE` to `msg.sender`.
    * Grants `CREATOR_ROLE` to `_itemCreator`.
    * @param _biddingTime Initial bidding time.
-   * @param _token The address of the token used for payments.
+   * @param _acceptedToken The address of the token used for payments.
    * @param _itemCreator The address of the item creator.
    * @param _nftName Name of the EssentialImages contract.
    * @param _nftSymbol Symbol of the EssentialImages contract.
@@ -130,7 +130,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     uint256 _biddingTime,
     uint256 _minBiddingTime,
     uint256 _maxBiddingTime,
-    address _token,
+    address _acceptedToken,
     address _itemCreator,
     string memory _nftName,
     string memory _nftSymbol,
@@ -140,7 +140,7 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     minBiddingTime = _minBiddingTime;
     maxBiddingTime = _maxBiddingTime;
 
-    acdmToken = _token;
+    acceptedToken = _acceptedToken;
     acdm721 = address(new Academy721(_nftName, _nftSymbol));
     acdm1155 = address(new Academy1155(_uri));
 
@@ -420,8 +420,8 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    * @param amount Transfer amount in ACDM tokens.
    */
   function _transferTokens(address from, address to, uint256 amount) private {
-    from != address(0) ? IERC20(acdmToken).safeTransferFrom(from, to, amount)
-    : IERC20(acdmToken).safeTransfer(to, amount);
+    from != address(0) ? IERC20(acceptedToken).safeTransferFrom(from, to, amount)
+    : IERC20(acceptedToken).safeTransfer(to, amount);
   }
 
   /** @notice Cancelling order by id.
