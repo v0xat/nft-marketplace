@@ -13,16 +13,6 @@ contract Academy1155 is ERC1155, Ownable {
   }
 
   /**
-   * @dev See {ERC1155 - _mint}.
-   */
-  function mint(address account, uint256 id, uint256 amount, bytes memory data)
-    external
-    onlyOwner
-  {
-    _mint(account, id, amount, data);
-  }
-
-  /**
    * @dev See {ERC1155 - _mintBatch}.
    */
   function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)

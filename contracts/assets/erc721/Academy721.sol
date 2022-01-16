@@ -4,7 +4,7 @@ pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "../../utils/Counters.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 /** ERC721 item creation contract. */
 contract Academy721 is ERC721URIStorage, Ownable {

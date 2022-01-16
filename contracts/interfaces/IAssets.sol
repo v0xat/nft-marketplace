@@ -33,13 +33,6 @@ interface IAssets is IERC165 {
     string memory tokenURI
   ) external returns (uint256);
 
-  function mint(
-    address account,
-    uint256 id,
-    uint256 amount,
-    bytes memory data
-  ) external;
-
   function mintBatch(
     address to,
     uint256[] memory ids,

@@ -6,14 +6,14 @@ pragma solidity ^0.8.10;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "./Sweepable.sol";
+import "./access/AccessControl.sol";
 import "./assets/erc721/Academy721.sol";
 import "./assets/erc1155/Academy1155.sol";
 import "./interfaces/IAssets.sol";
-import "./utils/Counters.sol";
 
 /** @title NFT marketplace creation contract.
  * @author https://github.com/v0xat
@@ -524,11 +524,6 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     }
 
     return orderBids;
-  }
-
-  /** This override required because both ERC1155 and AccessControl include supportsInterface. */
-  function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155Receiver, AccessControl) returns (bool) {
-    return super.supportsInterface(interfaceId);
   }
 
   /** Always returns `IERC721Receiver.onERC721Received.selector`. */
