@@ -1,7 +1,7 @@
 # NFT Marketplace
 
 Still in develop, TODO:
-- support 1155
+- bridge eth-bsc ?
 - deploy
 
 ### Description:
