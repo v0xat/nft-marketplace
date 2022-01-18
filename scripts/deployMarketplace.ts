@@ -41,8 +41,8 @@ async function main() {
   // Sync env file
   fs.appendFileSync(
     `.env-${network}`,
-    `\r\# Deployed at \rMARKETPLACE_ADDRESS=${mp.address}\r
-     \r\# Deployed at \rNFT_ADDRESS=${nftAddrs}\r`
+    `\r# Deployed at \rMARKETPLACE_ADDRESS=${mp.address}\r
+     \r# Deployed at \rNFT_ADDRESS=${nftAddrs}\r`
   );
 }
 

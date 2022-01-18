@@ -35,7 +35,7 @@ async function main() {
   // Sync env file
   fs.appendFileSync(
     `.env-${network}`,
-    `\r\# Deployed at \rTOKEN_ADDRESS=${token.address}\r`
+    `\r# Deployed at \rTOKEN_ADDRESS=${token.address}\r`
   );
 }
 
