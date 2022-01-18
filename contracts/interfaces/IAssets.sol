@@ -39,4 +39,8 @@ interface IAssets is IERC165 {
     uint256[] memory amounts,
     bytes memory data
   ) external;
+
+  function burn(
+    uint256 id
+  ) external;
 }

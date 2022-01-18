@@ -42,4 +42,11 @@ contract Academy721 is ERC721URIStorage, Ownable {
 
     return newItemId;
   }
+
+  function burn(uint256 tokenId)
+    external
+    onlyOwner
+  {
+    _burn(tokenId);
+  }
 }
