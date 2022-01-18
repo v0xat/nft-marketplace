@@ -12,8 +12,8 @@ import "solidity-coverage";
 import "./tasks/index.ts";
 
 const chainIds = {
-  mumbai: 80001,
   rinkeby: 4,
+  bscTestnet: 97,
 };
 
 let mnemonic: string;
@@ -54,8 +54,16 @@ const config: HardhatUserConfig = {
   },
   defaultNetwork: "hardhat",
   networks: {
-    mumbai: createNetworkConfig("mumbai"),
     rinkeby: createNetworkConfig("rinkeby"),
+    bscTestnet: {
+      accounts: {
+        count: 2,
+        mnemonic,
+      },
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      chainId: chainIds.bscTestnet,
+      gasPrice: 20000000000,
+    },
   },
   etherscan: {
     apiKey: {
