@@ -27,7 +27,7 @@ async function main() {
     process.env.BRIDGE_VERSION,
     process.env.NFT_721_ADDRESS,
     process.env.NFT_721_ADDRESS_BSC,
-    "0x9c5042b7eB6057f2C9Fa58c82Af330173bc42b35"
+    process.env.BRIDGE_GATEWAY
   );
 
   console.log(`${process.env.BRIDGE_NAME} deployed to ${bridge.address}`);
