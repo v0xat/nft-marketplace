@@ -19,10 +19,10 @@ async function main() {
     `Owner account balance: ${hre.ethers.utils.formatEther(balance).toString()}`
   );
 
-  const Sideridge = await hre.ethers.getContractFactory(
+  const SideBridge = await hre.ethers.getContractFactory(
     process.env.BRIDGE_NAME as string
   );
-  const bridge = await Sideridge.deploy(
+  const bridge = await SideBridge.deploy(
     process.env.BRIDGE_NAME,
     process.env.BRIDGE_VERSION,
     process.env.NFT_721_ADDRESS,
