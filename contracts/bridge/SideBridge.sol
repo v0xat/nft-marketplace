@@ -5,8 +5,7 @@ pragma solidity ^0.8.10;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 
-// import "../libraries/EIP712.sol";
-import "../interfaces/IAssets.sol";
+import "../assets/erc721/Academy721.sol";
 
 /** @title Swaps ERC721 items between ETH <=> BSC networks. 
  * @dev This contract should be deployed on the Ethereum network.
@@ -29,9 +28,10 @@ contract SideBridge is EIP712 {
 
   struct SwapRequest {
     uint256 itemId;
-    address itemContract;
     uint256 _chainFrom;
     uint256 _chainTo;
+    string tokenURI;
+    address itemContract;
     address swapper;
     address to;
     SwapStatus status;
@@ -58,25 +58,26 @@ contract SideBridge is EIP712 {
     gateway = _gateway;
   }
 
-  function swap(address _contract, uint256 _itemId, address _to, uint256 _chainFrom, uint256 _chainTo)
+  function swap(uint256 _itemId, address _to, uint256 _chainFrom, uint256 _chainTo)
     external
   {
     SwapRequest memory request = SwapRequest({
       itemId: _itemId,
-      itemContract: _contract,
+      itemContract: bsc,
       _chainFrom: _chainFrom,
       _chainTo: _chainTo,
+      tokenURI: Academy721(bsc).tokenURI(_itemId),
       swapper: msg.sender,
       to: _to,
       status: SwapStatus.Initialized
     });
 
-    bytes32 hash = _hashToSign( request);
+    bytes32 hash = _hashToSign(request);
     requests[hash] = request;
 
-    IAssets(_contract).burn(_itemId);
+    Academy721(bsc).safeTransferFrom(msg.sender, address(this), _itemId);
 
-    emit SwapInitialized(hash, _contract, _itemId, msg.sender, _chainFrom, _chainTo, _to);
+    emit SwapInitialized(hash, bsc, _itemId, msg.sender, _chainFrom, _chainTo, _to);
   }
 
   function redeem(bytes32 hash, uint8 v, bytes32 r, bytes32 s) external {
@@ -85,6 +86,7 @@ contract SideBridge is EIP712 {
     require(signer == gateway, "ECDSA: invalid signature");
 
     redeemed[hash] = true;
+    Academy721(bsc).safeMint(address(this), "uri");
 
     emit SwapRedeemed(hash);
   }
