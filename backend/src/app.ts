@@ -63,22 +63,16 @@ mainBridge.on(
     console.log(`_chainTo:  ${_chainTo}`);
     console.log(`to:  ${to}`);
 
-    const messageHashBinary = ethers.utils.arrayify(hashToSign);
-    console.log(`messageHashBinary: ${messageHashBinary}`);
+    const testBytes = ethers.utils.arrayify(hashToSign);
+    const messageHash = ethers.utils.hashMessage(testBytes);
 
-    console.log("Signing...");
-    const signature = await signer.signMessage(messageHashBinary);
-    console.log(`signedHash: ${signature}`);
+    const signature = await signer.signMessage(testBytes);
+    const recovered = ethers.utils.verifyMessage(testBytes, signature);
 
-    const sig = ethers.utils.splitSignature(signature);
-    console.log("Signature:", sig);
-    console.log("Signature v:", sig.v);
-    console.log("Signature r:", sig.r);
-    console.log("Signature s:", sig.s);
+    console.log("Recovered:", recovered);
+    const splitSig = ethers.utils.splitSignature(signature);
 
-    console.log("Recovered:", ethers.utils.verifyMessage(messageHashBinary, sig));
-
-    await sideBridge.redeem(messageHashBinary, sig.v, sig.r, sig.s);
+    await sideBridge.redeem(messageHash, splitSig);
 
     // Emitted when the transaction has been mined
     // provider.once(event.transactionHash, async () => {
@@ -92,41 +86,35 @@ sideBridge.on("SwapRedeemed", async (hash, event) => {
   console.log(`hash:  ${hash}`);
 });
 
-// sideBridge.on(
-//   "SwapInitialized",
-//   async (swapId, item, tokenId, swapper, _chainFrom, _chainTo, to, event) => {
-//     const hashToSign = swapId;
+sideBridge.on(
+  "SwapInitialized",
+  async (swapId, item, tokenId, swapper, _chainFrom, _chainTo, to, event) => {
+    const hashToSign = swapId;
 
-//     console.log(`Swap initialized, txHash:  ${event.transactionHash}`);
-//     console.log(`hashToSign:  ${hashToSign}`);
-//     console.log(`itemContract:  ${item}`);
-//     console.log(`tokenId:  ${tokenId}`);
-//     console.log(`swapper:  ${swapper}`);
-//     console.log(`_chainFrom:  ${_chainFrom}`);
-//     console.log(`_chainTo:  ${_chainTo}`);
-//     console.log(`to:  ${to}`);
+    console.log(`Swap initialized, txHash:  ${event.transactionHash}`);
+    console.log(`hashToSign:  ${hashToSign}`);
+    console.log(`itemContract:  ${item}`);
+    console.log(`tokenId:  ${tokenId}`);
+    console.log(`swapper:  ${swapper}`);
+    console.log(`_chainFrom:  ${_chainFrom}`);
+    console.log(`_chainTo:  ${_chainTo}`);
+    console.log(`to:  ${to}`);
 
-//     const messageHashBinary = ethers.utils.arrayify(hashToSign);
-//     console.log(`messageHashBinary: ${messageHashBinary}`);
+    const testBytes = ethers.utils.arrayify(hashToSign);
+    const messageHash = ethers.utils.hashMessage(testBytes);
 
-//     console.log("Signing...");
-//     const signature = await signer.signMessage(messageHashBinary);
-//     console.log(`signedHash: ${signature}`);
+    const signature = await signer.signMessage(testBytes);
+    const recovered = ethers.utils.verifyMessage(testBytes, signature);
 
-//     const sig = ethers.utils.splitSignature(signature);
-//     console.log("Signature:", sig);
-//     console.log("Signature v:", sig.v);
-//     console.log("Signature r:", sig.r);
-//     console.log("Signature s:", sig.s);
+    console.log("Recovered:", recovered);
+    const splitSig = ethers.utils.splitSignature(signature);
 
-//     console.log("Recovered:", ethers.utils.verifyMessage(messageHashBinary, sig));
+    await mainBridge.redeem(messageHash, splitSig);
 
-//     await mainBridge.redeem(messageHashBinary, sig.v, sig.r, sig.s);
-
-//     // Emitted when the transaction has been mined
-//     provider.once(event.transactionHash, async () => {});
-//   }
-// );
+    // Emitted when the transaction has been mined
+    // provider.once(event.transactionHash, async () => {});
+  }
+);
 
 // TODO
 // get swap status by id
