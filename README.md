@@ -1,7 +1,6 @@
 # NFT Marketplace
 
 Still in develop, TODO:
-- bridge eth-bsc ?
 - deploy
 
 ### Description:

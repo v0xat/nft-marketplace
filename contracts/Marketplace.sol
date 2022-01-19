@@ -120,9 +120,10 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
    * @dev Grants `DEFAULT_ADMIN_ROLE` to `msg.sender`.
    * Grants `CREATOR_ROLE` to `_itemCreator`.
    * @param _biddingTime Initial bidding time.
-   * @param _acdm721 The address of the Academy721 items  contract.
-   * @param _itemCreator The address of the item creator.
    * @param _acceptedToken The address of the token used for payments.
+   * @param _itemCreator The address of the item creator.
+   * @param _nftName Name of the EssentialImages contract.
+   * @param _nftSymbol Symbol of the EssentialImages contract.
    * @param _uri URI for 1155 token types.
    */
   constructor(
@@ -131,14 +132,15 @@ contract Marketplace is AccessControl, Pausable, Sweepable, ERC1155Holder, IERC7
     uint256 _maxBiddingTime,
     address _acceptedToken,
     address _itemCreator,
-    address _acdm721,
+    string memory _nftName,
+    string memory _nftSymbol,
     string memory _uri
   ) {
     biddingTime = _biddingTime;
     minBiddingTime = _minBiddingTime;
     maxBiddingTime = _maxBiddingTime;
 
-    acdm721 = _acdm721;
+    acdm721 = address(new Academy721(_nftName, _nftSymbol));
     acceptedToken = _acceptedToken;
     acdm1155 = address(new Academy1155(_uri));
 

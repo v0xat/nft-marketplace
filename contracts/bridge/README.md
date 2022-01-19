@@ -1,1 +1,0 @@
-Ethereum <-> Binance Smart Chain bridge to swap ERC721 tokens.

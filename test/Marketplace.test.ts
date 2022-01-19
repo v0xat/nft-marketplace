@@ -16,7 +16,6 @@ const thirtyTokens = ethers.utils.parseUnits("30.0", decimals);
 // Academy 721 metadata
 const name721 = "Academy721";
 const symbol721 = "acdm721";
-const rangeUnit = 1000;
 
 // Academy 1155 metadata
 const name1155 = "Academy1155";
@@ -47,7 +46,6 @@ describe("Marketplace", function () {
     acdm721: Contract,
     acdm1155: Contract,
     Marketplace: ContractFactory,
-    Academy721: ContractFactory,
     ACDMtoken: ContractFactory,
     owner: SignerWithAddress,
     alice: SignerWithAddress,
@@ -58,16 +56,11 @@ describe("Marketplace", function () {
   before(async () => {
     [owner, alice, bob, ...addrs] = await ethers.getSigners();
     ACDMtoken = await ethers.getContractFactory(tokenName);
-    Academy721 = await ethers.getContractFactory(name721);
     Marketplace = await ethers.getContractFactory("Marketplace");
 
-    // Deploy payment token
+    // Deploy token
     acdmToken = await ACDMtoken.deploy(tokenName, tokenSymbol);
     await acdmToken.deployed();
-
-    // Deploy 721
-    acdm721 = await Academy721.deploy(name721, symbol721, rangeUnit);
-    await acdm721.deployed();
 
     // Deploy Marketplace & NFT contract, set CREATOR_ROLE to Alice
     mp = await Marketplace.deploy(
@@ -76,13 +69,17 @@ describe("Marketplace", function () {
       maxBiddingTime,
       acdmToken.address,
       alice.address,
-      acdm721.address,
+      name721,
+      symbol721,
       uri
     );
     await mp.deployed();
 
-    // Getting 1155 contract
-    const addr = await mp.acdm1155();
+    // Getting assets contracts
+    let addr: string = await mp.acdm721();
+    acdm721 = await ethers.getContractAt(name721, addr);
+
+    addr = await mp.acdm1155();
     acdm1155 = await ethers.getContractAt(name1155, addr);
 
     // Grant Minter & Burner role to admin
