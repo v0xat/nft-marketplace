@@ -2,15 +2,17 @@
 
 pragma solidity ^0.8.10;
 
+import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 import "../assets/erc721/Academy721.sol";
 
 /** @title Swaps ERC721 items between ETH <=> BSC networks. 
  * @dev This contract should be deployed on the Ethereum network.
  */
-contract SideBridge is EIP712 {
+contract SideBridge is EIP712, IERC721Receiver {
   /** Backend signer address for swap. */
   address private gateway;
 
@@ -26,10 +28,20 @@ contract SideBridge is EIP712 {
     Redeemed
   }
 
+  /* An ECDSA signature. */ 
+  struct Sig {
+    /* v parameter */
+    uint8 v;
+    /* r parameter */
+    bytes32 r;
+    /* s parameter */
+    bytes32 s;
+  }
+
   struct SwapRequest {
     uint256 itemId;
-    uint256 _chainFrom;
-    uint256 _chainTo;
+    uint256 chainFrom;
+    uint256 chainTo;
     string tokenURI;
     address itemContract;
     address swapper;
@@ -39,11 +51,11 @@ contract SideBridge is EIP712 {
 
   event SwapInitialized(
     bytes32 indexed swapHash,
-    address item,
     uint256 indexed itemId,
+    string uri,
     address swapper,
-    uint256 _chainFrom,
-    uint256 _chainTo,
+    uint256 chainFrom,
+    uint256 chainTo,
     address to
   );
 
@@ -58,35 +70,43 @@ contract SideBridge is EIP712 {
     gateway = _gateway;
   }
 
-  function swap(uint256 _itemId, address _to, uint256 _chainFrom, uint256 _chainTo)
+  function swap(uint256 id, address to, uint256 chainFrom, uint256 chainTo)
     external
   {
+    require(Academy721(bsc).ownerOf(id) == msg.sender, "Caller is not owner nor approved");
     SwapRequest memory request = SwapRequest({
-      itemId: _itemId,
+      itemId: id,
       itemContract: bsc,
-      _chainFrom: _chainFrom,
-      _chainTo: _chainTo,
-      tokenURI: Academy721(bsc).tokenURI(_itemId),
+      chainFrom: chainFrom,
+      chainTo: chainTo,
+      tokenURI: Academy721(bsc).tokenURI(id),
       swapper: msg.sender,
-      to: _to,
+      to: to,
       status: SwapStatus.Initialized
     });
 
     bytes32 hash = _hashToSign(request);
     requests[hash] = request;
 
-    Academy721(bsc).safeTransferFrom(msg.sender, address(this), _itemId);
+    Academy721(bsc).safeTransferFrom(msg.sender, address(this), id);
 
-    emit SwapInitialized(hash, bsc, _itemId, msg.sender, _chainFrom, _chainTo, _to);
+    emit SwapInitialized(hash, id, request.tokenURI, msg.sender, chainFrom, chainTo, to);
   }
 
-  function redeem(bytes32 hash, uint8 v, bytes32 r, bytes32 s) external {
+  function redeem(bytes32 hash, Sig memory sig, address to, uint256 id, string calldata uri, uint256 chainFrom) external {
     require(msg.sender == gateway, "Only gateway can execute redeem");
-    address signer = ECDSA.recover(hash, v, r, s);
+    require(!redeemed[hash], "Can't redeem twice");
+
+    address signer = ECDSA.recover(hash, sig.v, sig.r, sig.s);
     require(signer == gateway, "ECDSA: invalid signature");
 
+    if (Academy721(bsc).exists(id)) {
+      Academy721(bsc).safeTransferFrom(address(this), to, id);
+    } else {
+      Academy721(bsc).safeMintBridge(id, chainFrom, to, uri);
+    }
+
     redeemed[hash] = true;
-    Academy721(bsc).safeMint(address(this), "uri");
 
     emit SwapRedeemed(hash);
   }
@@ -107,12 +127,18 @@ contract SideBridge is EIP712 {
       abi.encode(
         req.itemId,
         req.itemContract,
-        req._chainFrom,
-        req._chainTo,
+        req.chainFrom,
+        req.chainTo,
+        req.tokenURI,
         req.swapper,
         req.to,
         req.status
       )
     );
+  }
+
+  /** Always returns `IERC721Receiver.onERC721Received.selector`. */
+  function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
+    return this.onERC721Received.selector;
   }
 }
