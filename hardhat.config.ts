@@ -13,9 +13,7 @@ import "./tasks/index.ts";
 
 const chainIds = {
   rinkeby: 4,
-  ropsten: 3,
   kovan: 42,
-  bscTestnet: 97,
 };
 
 let mnemonic: string;
@@ -60,15 +58,6 @@ const config: HardhatUserConfig = {
   networks: {
     rinkeby: createNetworkConfig("rinkeby"),
     kovan: createNetworkConfig("kovan"),
-    bscTestnet: {
-      accounts: {
-        count: 2,
-        mnemonic,
-      },
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
-      chainId: chainIds.bscTestnet,
-      gasPrice: 20000000000,
-    },
   },
   etherscan: {
     apiKey: {

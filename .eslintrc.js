@@ -24,6 +24,7 @@ module.exports = {
     "max-len": [1, { code: 90 }],
     "node/no-missing-import": ["error", {
       "tryExtensions": [".ts", ".js", ".json", ".node"]
-    }]
+    }],
+    "camelcase": "off"
   },
 };

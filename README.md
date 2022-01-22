@@ -1,8 +1,5 @@
 # NFT Marketplace
 
-Still in develop, TODO:
-- deploy
-
 ### Description:
 
 This marketplace allows to mint and sell ERC721 and ERC1155 items for ERC20 tokens.
@@ -15,26 +12,26 @@ The auction works according to the following rules:
 - Auction can't be cancelled before the end of the bidding time.
 - When the bidding time is over, the owner of the item may end the auction. If more than 2 bids have been placed, the item goes to the highest bidder and the auction owner receives tokens, otherwise the tokens are returned to the last bidder and the owner receives item back.
 
-### Contracts on Rinkeby testnet:
+### Verified contracts in Kovan testnet:
 
+Marketplace: [0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57](https://kovan.etherscan.io/address/0x443Bbaf1E93EF13e772F407e5563c35751dd17a3)
 
-<!-- Essential Images: [0x7a69da73dfED20B6666d99ffa4dC5E039551F6a7](https://rinkeby.etherscan.io/token/0xbFfb4Ed8df31a6A788e1B67E92B732087F998a2c)
+Marketplace Token: [0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57](https://kovan.etherscan.io/token/0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57)
 
-Marketplace: [0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57](https://rinkeby.etherscan.io/address/0x443Bbaf1E93EF13e772F407e5563c35751dd17a3)
+Academy 721: [0xF3eA487d82FD3F2Ec3E2836334b95a12616d06Ed](https://kovan.etherscan.io/token/0xF3eA487d82FD3F2Ec3E2836334b95a12616d06Ed)
 
-Token: [0x1F06A276d26028d7E1D392B7E432E255f9137d9B](https://rinkeby.etherscan.io/token/0xf7fA25BbD63d7A6F3Cc4f0898bAf55d1f5591796) -->
+Academy 1155: [0x0Fa4c2Ab77D3456B252716e3Aadf804fF9a5Db4A](https://kovan.etherscan.io/token/0x0Fa4c2Ab77D3456B252716e3Aadf804fF9a5Db4A)
+
 
 ### How to run
 
 Create a `.env` file using the `.env.example` template with the following content
 - [ALCHEMY_API_KEY](https://www.alchemy.com/)
-- [POLYGONSCAN_API_KEY](https://polygonscan.com/apis)
 - [CMC_API_KEY](https://coinmarketcap.com/api/)
-- [BSCSCAN_API_KEY](https://bscscan.com/apis)
 - [ETHERSCAN_API_KEY](https://etherscan.io/apis)
 - [MNEMONIC](https://docs.metamask.io/guide/common-terms.html#mnemonic-phrase-seed-phrase-seed-words)
 
-Try running some of the following tasks and don't forget to specify network (ex. `--network rinkeby`):
+Try running some of the following tasks and don't forget to specify network (ex. `--network kovan`):
 
 * `hh` is a [shorthand](https://hardhat.org/guides/shorthand.html) for `npx hardhat`
 
