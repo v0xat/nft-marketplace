@@ -16,7 +16,7 @@ The auction works according to the following rules:
 
 Marketplace: [0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57](https://kovan.etherscan.io/address/0x443Bbaf1E93EF13e772F407e5563c35751dd17a3)
 
-Marketplace Token: [0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57](https://kovan.etherscan.io/token/0x6ccFD289E1C64Ed594fFa651107dC6EA06680A57)
+Marketplace Token: [0x96a75426C5e109926FAB465536a50691f36f1c4c](https://kovan.etherscan.io/token/0x96a75426C5e109926FAB465536a50691f36f1c4c)
 
 Academy 721: [0xF3eA487d82FD3F2Ec3E2836334b95a12616d06Ed](https://kovan.etherscan.io/token/0xF3eA487d82FD3F2Ec3E2836334b95a12616d06Ed)
 
