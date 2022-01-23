@@ -1,5 +1,7 @@
 # NFT Marketplace
 
+*This is a training project, you should not use any of it's code in production because it's not properly audited and tested.*
+
 ### Description:
 
 This marketplace allows to mint and sell ERC721 and ERC1155 items for ERC20 tokens.
