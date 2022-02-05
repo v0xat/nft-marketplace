@@ -23,6 +23,6 @@ task("grantRole", "Grants role to account")
 
     const role = taskArgs.role === "burner" ? burner : minter;
     console.log(`\nGranting role ${role} to ${taskArgs.to}...\n`);
-    await token.grantRole(role, taskArgs.ttttttoo);
+    await token.grantRole(role, taskArgs.to);
     console.log(`Done!`);
   });
